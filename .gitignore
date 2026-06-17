@@ -1,0 +1,9 @@
+node_modules/
+dist/
+server/node_modules/
+*.local
+.env
+
+# Données de parties (générées au runtime)
+games.json
+server/games.json
