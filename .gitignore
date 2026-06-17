@@ -7,3 +7,6 @@ server/node_modules/
 # Données de parties (générées au runtime)
 games.json
 server/games.json
+
+# Android — généré par Capacitor (ne pas commiter)
+android/

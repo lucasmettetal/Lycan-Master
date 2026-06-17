@@ -11,9 +11,15 @@
     "start:client": "vite",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
-    "test:v4": "node server/test-v4.js"
+    "test:v4": "node server/test-v4.js",
+    "cap:sync": "npm run build && npx cap sync",
+    "android:open": "npx cap open android",
+    "android:build": "npm run build && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
