@@ -1,28 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Plus, QrCode, Crown, History, Trash2, Wifi, WifiOff } from "lucide-react";
-import { GameProvider, useGame, type GamePhase, type PlayerStatus, type GameMode, type RoleConfig, type AppView } from "./context/GameContext";
+import { ArrowLeft, Plus, QrCode, Crown, History, Trash2, Wifi, WifiOff, Eye } from "lucide-react";
+import { GameProvider, useGame, type GamePhase, type PlayerStatus, type GameMode, type RoleConfig, type AppView, type GameState } from "./context/GameContext";
 import { NightWizard } from "./components/game/NightWizard";
 import { RulesScreen } from "./components/game/RulesScreen";
 import { HunterModal } from "./components/game/HunterModal";
 import { PhaseTimer } from "./components/game/PhaseTimer";
 import { PlayerActionCard } from "./components/game/PlayerActionCard";
-
-// ── Données rôles (miroir client du server/roles.js) ──────────────────────────
-
-const ROLES_DATA = [
-  { id: "werewolf", name: "Loup-Garou", category: "wolves", emoji: "🐺", description: "Chaque nuit, élimine un villageois avec la meute.", defaultCount: 2 },
-  { id: "bigbadwolf", name: "Grand Méchant Loup", category: "wolves", emoji: "🌑", description: "Dévore un villageois supplémentaire s'il n'y a eu aucune mort.", defaultCount: 0 },
-  { id: "seer", name: "Voyante", category: "special", emoji: "🔮", description: "Chaque nuit, découvre le rôle d'un joueur.", defaultCount: 1 },
-  { id: "witch", name: "Sorcière", category: "special", emoji: "⚗️", description: "Possède une potion de vie et une potion de mort.", defaultCount: 1 },
-  { id: "hunter", name: "Chasseur", category: "special", emoji: "🏹", description: "En mourant, peut éliminer un joueur de son choix.", defaultCount: 1 },
-  { id: "cupid", name: "Cupidon", category: "special", emoji: "💘", description: "La première nuit, unit deux joueurs par l'amour.", defaultCount: 1 },
-  { id: "captain", name: "Capitaine", category: "special", emoji: "⚔️", description: "Son vote compte double. Désigne son successeur.", defaultCount: 0 },
-  { id: "littlegirl", name: "Petite Fille", category: "village", emoji: "👧", description: "Peut espionner discrètement les Loups la nuit.", defaultCount: 0 },
-  { id: "elder", name: "L'Ancien", category: "village", emoji: "🧙", description: "Résiste à la première attaque des Loups.", defaultCount: 0 },
-  { id: "villager", name: "Villageois", category: "village", emoji: "👨‍🌾", description: "Un simple villageois sans pouvoir particulier.", defaultCount: 3 },
-];
-
-const ROLE_MAP = Object.fromEntries(ROLES_DATA.map((r) => [r.id, r]));
+import { ROLES, ROLES_MAP } from "../lib/roles";
+import { buildPlayerView } from "../lib/gameLogic";
 
 const PHASES: Record<string, { label: string; icon: string; gradient: string; actions: string[] }> = {
   waiting: {
@@ -124,7 +109,7 @@ function Avatar({ name, status, isCapitaine }: { name: string; status: PlayerSta
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="w-8 h-8 rounded-full border border-[#c9a030]/30 flex items-center justify-center text-[#c9a030] transition-all active:scale-90 flex-shrink-0">
+    <button onClick={onClick} className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 flex-shrink-0" style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}>
       <ArrowLeft size={15} />
     </button>
   );
@@ -136,7 +121,7 @@ function PrimaryButton({ children, onClick, disabled }: { children: React.ReactN
       onClick={onClick}
       disabled={disabled}
       className="w-full py-4 rounded-xl font-semibold uppercase text-sm tracking-widest transition-all active:scale-95 disabled:opacity-40"
-      style={{ fontFamily: "Cinzel, serif", background: "linear-gradient(135deg, #8b1c1c 0%, #6b1414 100%)", color: "#f0e8d0", boxShadow: disabled ? "none" : "0 0 24px rgba(139,28,28,0.35), inset 0 1px 0 rgba(255,255,255,0.07)", letterSpacing: "0.1em" }}
+      style={{ fontFamily: "var(--font-title)", background: "linear-gradient(135deg, var(--red-wolf) 0%, #6b1414 100%)", color: "var(--text-primary)", boxShadow: disabled ? "none" : "0 0 24px var(--red-wolf-glow), inset 0 1px 0 rgba(255,255,255,0.07)", letterSpacing: "0.1em" }}
     >
       {children}
     </button>
@@ -148,7 +133,7 @@ function GoldOutlineButton({ children, onClick }: { children: React.ReactNode; o
     <button
       onClick={onClick}
       className="w-full py-3 rounded-xl text-sm transition-all active:scale-95 border"
-      style={{ fontFamily: "Cinzel, serif", borderColor: "rgba(201,160,48,0.35)", color: "#c9a030", background: "transparent", letterSpacing: "0.06em" }}
+      style={{ fontFamily: "var(--font-title)", borderColor: "var(--gold-dim)", color: "var(--gold)", background: "transparent", letterSpacing: "0.06em" }}
     >
       {children}
     </button>
@@ -157,20 +142,20 @@ function GoldOutlineButton({ children, onClick }: { children: React.ReactNode; o
 
 function DarkCard({ children, red }: { children: React.ReactNode; red?: boolean }) {
   return (
-    <div className="rounded-2xl p-5" style={{ background: "#16141f", border: `1px solid ${red ? "rgba(139,28,28,0.35)" : "rgba(201,160,48,0.18)"}`, boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(201,160,48,0.07)" }}>
+    <div className="rounded-2xl p-5" style={{ background: "var(--bg-card)", border: `1px solid ${red ? "var(--red-wolf-dim)" : "var(--gold-glow)"}`, boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 var(--gold-subtle)" }}>
       {children}
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] text-[#9490a0] uppercase tracking-widest font-mono mb-2">{children}</p>;
+  return <p className="text-[10px] uppercase tracking-widest font-mono mb-2" style={{ color: "var(--text-muted)" }}>{children}</p>;
 }
 
 function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
-    <div className="mx-5 mb-3 p-3 rounded-xl flex items-start gap-2" style={{ background: "rgba(139,28,28,0.2)", border: "1px solid rgba(139,28,28,0.5)" }}>
-      <span className="text-red-400 text-xs flex-1" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{message}</span>
+    <div className="mx-5 mb-3 p-3 rounded-xl flex items-start gap-2" style={{ background: "var(--red-wolf-dim)", border: "1px solid rgba(139,28,28,0.5)" }}>
+      <span className="text-red-400 text-xs flex-1" style={{ fontFamily: "var(--font-body)" }}>{message}</span>
       <button onClick={onDismiss} className="text-[#9490a0] text-xs ml-2 flex-shrink-0">✕</button>
     </div>
   );
@@ -181,48 +166,48 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
 function HomeScreen() {
   const { navigate, state } = useGame();
   const stars = useMemo(
-    () => Array.from({ length: 28 }, (_, i) => ({ id: i, w: ((i * 7 + 3) % 3) * 0.6 + 0.8, top: ((i * 17 + 11) % 58) + 4, left: ((i * 23 + 7) % 96) + 2, opacity: ((i * 13 + 5) % 5) * 0.08 + 0.08 })),
+    () => Array.from({ length: 32 }, (_, i) => ({ id: i, w: ((i * 7 + 3) % 3) * 0.5 + 0.7, top: ((i * 17 + 11) % 88) + 4, left: ((i * 23 + 7) % 96) + 2, opacity: ((i * 13 + 5) % 5) * 0.07 + 0.06 })),
     []
   );
 
   return (
-    <div className="relative overflow-hidden flex flex-col items-center justify-between" style={{ minHeight: "100%", background: "radial-gradient(ellipse at 50% 25%, #1a1028 0%, #0b0a0f 65%)" }}>
+    <div className="relative overflow-hidden flex flex-col items-center justify-between" style={{ minHeight: "100%", background: "radial-gradient(ellipse at 50% 20%, #1a0f2e 0%, var(--bg-deep) 60%)" }}>
       <div className="absolute inset-0 pointer-events-none">
-        {stars.map((s) => <div key={s.id} className="absolute rounded-full bg-[#c9a030]" style={{ width: s.w, height: s.w, top: `${s.top}%`, left: `${s.left}%`, opacity: s.opacity }} />)}
+        {stars.map((s) => <div key={s.id} className="absolute rounded-full" style={{ width: s.w, height: s.w, top: `${s.top}%`, left: `${s.left}%`, opacity: s.opacity, background: "var(--gold)" }} />)}
       </div>
 
       {/* Indicateur de connexion */}
       <div className="absolute top-4 right-5 flex items-center gap-1.5 z-10">
         {state.connected
           ? <><Wifi size={11} className="text-emerald-400" /><span className="text-[9px] text-emerald-400 font-mono">Connecté</span></>
-          : <><WifiOff size={11} className="text-[#9490a0]" /><span className="text-[9px] text-[#9490a0] font-mono">Hors ligne</span></>
+          : <><WifiOff size={11} style={{ color: "var(--text-muted)" }} /><span className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>Hors ligne</span></>
         }
       </div>
 
       <div className="flex flex-col items-center mt-14 gap-5 z-10">
         <div className="relative">
-          <div className="absolute inset-0 rounded-full blur-3xl" style={{ background: "rgba(201,160,48,0.18)", transform: "scale(1.8)" }} />
+          <div className="absolute inset-0 rounded-full blur-3xl" style={{ background: "var(--gold-glow)", transform: "scale(2.2)" }} />
           <LycanLogo size={108} />
         </div>
         <div className="text-center">
-          <h1 className="text-[32px] font-bold text-[#c9a030] tracking-[0.18em] uppercase leading-tight" style={{ fontFamily: "Cinzel Decorative, Cinzel, serif" }}>Lycan</h1>
-          <h1 className="text-[32px] font-bold text-[#c9a030] tracking-[0.18em] uppercase leading-tight -mt-1" style={{ fontFamily: "Cinzel Decorative, Cinzel, serif" }}>Master</h1>
-          <p className="text-[#9490a0] text-[9px] mt-1.5 tracking-[0.35em] uppercase font-mono">Maître du Jeu</p>
+          <h1 className="text-[32px] font-bold uppercase leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--gold)", letterSpacing: "0.18em", textShadow: "0 0 28px rgba(201,160,48,0.3)" }}>Lycan</h1>
+          <h1 className="text-[32px] font-bold uppercase leading-tight -mt-1" style={{ fontFamily: "var(--font-display)", color: "var(--gold)", letterSpacing: "0.18em", textShadow: "0 0 28px rgba(201,160,48,0.3)" }}>Master</h1>
+          <p className="text-[10px] mt-2 tracking-[0.25em] uppercase font-mono" style={{ color: "var(--text-muted)" }}>Assistant du Maître du Jeu</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-px bg-gradient-to-r from-transparent to-[#c9a030]/40" />
-          <div className="w-1 h-1 rounded-full bg-[#c9a030]/60" />
-          <div className="w-12 h-px bg-gradient-to-l from-transparent to-[#c9a030]/40" />
+          <div className="w-12 h-px bg-gradient-to-r from-transparent to-accent/40" />
+          <span className="text-[11px]" style={{ color: "var(--gold)", opacity: 0.55 }}>🐺</span>
+          <div className="w-12 h-px bg-gradient-to-l from-transparent to-accent/40" />
         </div>
-        <p className="text-[#c8c0b0]/65 text-sm text-center leading-relaxed max-w-[240px]" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
-          "Animez vos soirées Loup-Garou plus facilement."
+        <p className="text-sm text-center leading-relaxed max-w-[240px]" style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--text-secondary)", opacity: 0.75 }}>
+          "Animez vos soirées Loup-Garou."
         </p>
       </div>
 
       <div className="w-full flex flex-col gap-3 px-6 mb-10 z-10">
         <PrimaryButton onClick={() => navigate("create")}>⚔ Créer une partie</PrimaryButton>
         <GoldOutlineButton onClick={() => navigate("join")}>🔗 Rejoindre une partie</GoldOutlineButton>
-        <button onClick={() => navigate("rules")} className="w-full py-3 text-sm transition-all active:scale-95" style={{ fontFamily: "Cinzel, serif", color: "#9490a0", letterSpacing: "0.06em" }}>
+        <button onClick={() => navigate("rules")} className="w-full py-3 text-sm transition-all active:scale-95" style={{ fontFamily: "var(--font-title)", color: "var(--text-muted)", letterSpacing: "0.06em" }}>
           📖 Règles et rôles
         </button>
       </div>
@@ -316,10 +301,10 @@ function CreateScreen() {
 // ── Écran : Joueurs ────────────────────────────────────────────────────────────
 
 function PlayersScreen() {
-  const { navigate, state, gmAddPlayer, gmRemovePlayer, setError } = useGame();
+  const { navigate, state, gmAddPlayer, gmRemovePlayer, gmAddTestPlayers, setError } = useGame();
   const [newName, setNewName] = useState("");
-  const [qrData, setQrData] = useState<{ qr: string; url: string } | null>(null);
-  const [loadingQr, setLoadingQr] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [addingTest, setAddingTest] = useState(false);
 
   const players = state.game?.players ?? [];
   const gameId = state.game?.id;
@@ -334,16 +319,15 @@ function PlayersScreen() {
     }
   };
 
-  const fetchQr = async () => {
+  const copyLink = async () => {
     if (!gameId) return;
-    setLoadingQr(true);
+    const url = `${window.location.origin}/join/${gameId}`;
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const res = await fetch(`${apiUrl}/api/game/${gameId}/qr?clientUrl=${encodeURIComponent(window.location.origin)}`);
-      const data = await res.json();
-      setQrData(data);
-    } finally {
-      setLoadingQr(false);
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setLinkCopied(false);
     }
   };
 
@@ -366,18 +350,32 @@ function PlayersScreen() {
 
       {state.error && <ErrorBanner message={state.error} onDismiss={() => setError(null)} />}
 
-      {/* QR Code */}
-      <button onClick={fetchQr} disabled={loadingQr} className="w-full mb-4 py-3 rounded-xl flex items-center justify-center gap-2 border border-dashed transition-all active:scale-95" style={{ borderColor: "rgba(201,160,48,0.3)", color: "#c9a030" }}>
+      {/* Lien d'invitation */}
+      <button onClick={copyLink} className="w-full mb-3 py-3 rounded-xl flex items-center justify-center gap-2 border border-dashed transition-all active:scale-95" style={{ borderColor: "rgba(201,160,48,0.3)", color: linkCopied ? "#4ade80" : "#c9a030" }}>
         <QrCode size={16} />
-        <span className="text-xs font-mono tracking-wide">{loadingQr ? "Génération..." : "Générer un QR code d'invitation"}</span>
+        <span className="text-xs font-mono tracking-wide">{linkCopied ? "✓ Lien copié !" : "Copier le lien d'invitation"}</span>
       </button>
 
-      {qrData && (
-        <div className="mb-4 p-4 rounded-xl flex flex-col items-center gap-3" style={{ background: "#16141f", border: "1px solid rgba(201,160,48,0.2)" }}>
-          <img src={qrData.qr} alt="QR Code" className="w-40 h-40 rounded-lg" />
-          <p className="text-[10px] text-[#9490a0] font-mono text-center break-all">{qrData.url}</p>
-          <button onClick={() => setQrData(null)} className="text-[9px] text-[#9490a0] font-mono">Fermer</button>
-        </div>
+      {/* DEV : créer joueurs de test */}
+      {import.meta.env.DEV && (
+        <button
+          disabled={addingTest}
+          onClick={async () => {
+            console.log("[Test] Clic Ajouter joueurs test");
+            setAddingTest(true);
+            try {
+              await gmAddTestPlayers();
+            } catch (e: unknown) {
+              setError((e as Error).message ?? "Erreur ajout joueurs test");
+            } finally {
+              setAddingTest(false);
+            }
+          }}
+          className="w-full mb-4 py-2.5 rounded-xl flex items-center justify-center gap-2 border border-dashed transition-all active:scale-95 text-xs font-mono tracking-wide disabled:opacity-40"
+          style={{ borderColor: "rgba(201,160,48,0.18)", color: "#9490a0" }}
+        >
+          {addingTest ? "⏳ Ajout en cours…" : "🧪 Créer joueurs de test (Alice–Frank)"}
+        </button>
       )}
 
       {/* Liste des joueurs */}
@@ -433,8 +431,8 @@ type RoleCategory = "wolves" | "village" | "special";
 function RolesScreen() {
   const { navigate, state, gmSetRoles, gmStart, setError } = useGame();
   const playerCount = state.game?.players.length ?? 0;
-  const [roles, setRoles] = useState<(typeof ROLES_DATA[0] & { count: number })[]>(
-    ROLES_DATA.map((r) => ({ ...r, count: r.defaultCount }))
+  const [roles, setRoles] = useState(() =>
+    ROLES.map((r) => ({ ...r, count: r.defaultCount }))
   );
   const [activeCategory, setActiveCategory] = useState<RoleCategory>("wolves");
   const [loading, setLoading] = useState(false);
@@ -494,16 +492,28 @@ function RolesScreen() {
       <div className="flex flex-col gap-2 mb-4">
         {filtered.map((role) => (
           <div key={role.id} className="p-3.5 rounded-xl flex items-center gap-3 transition-all"
-            style={{ background: role.count > 0 ? "rgba(139,28,28,0.1)" : "#16141f", border: `1px solid ${role.count > 0 ? "rgba(139,28,28,0.38)" : "rgba(201,160,48,0.12)"}` }}>
+            style={{
+              background: !role.playable ? "rgba(255,255,255,0.02)" : role.count > 0 ? "rgba(139,28,28,0.1)" : "#16141f",
+              border: `1px solid ${!role.playable ? "rgba(255,255,255,0.06)" : role.count > 0 ? "rgba(139,28,28,0.38)" : "rgba(201,160,48,0.12)"}`,
+              opacity: !role.playable ? 0.5 : 1,
+            }}>
             <div className="text-2xl flex-shrink-0 w-8 text-center">{role.emoji}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#e8ddd0] truncate" style={{ fontFamily: "Cinzel, serif" }}>{role.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-[#e8ddd0] truncate" style={{ fontFamily: "Cinzel, serif" }}>{role.name}</p>
+                {!role.playable && (
+                  <span className="text-[8px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0"
+                    style={{ background: "rgba(255,255,255,0.06)", color: "#9490a0" }}>Bientôt</span>
+                )}
+              </div>
               <p className="text-xs text-[#9490a0] leading-snug mt-0.5" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{role.description}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button onClick={() => updateCount(role.id, -1)} className="w-7 h-7 rounded-full border border-[#c9a030]/30 text-[#c9a030] flex items-center justify-center text-base leading-none transition-all active:scale-90">−</button>
-              <span className="w-5 text-center text-[#e8ddd0] font-mono text-sm">{role.count}</span>
-              <button onClick={() => updateCount(role.id, 1)} className="w-7 h-7 rounded-full border border-[#c9a030]/30 text-[#c9a030] flex items-center justify-center text-base leading-none transition-all active:scale-90">+</button>
+              <button onClick={() => updateCount(role.id, -1)} disabled={!role.playable}
+                className="w-7 h-7 rounded-full border border-[#c9a030]/30 text-[#c9a030] flex items-center justify-center text-base leading-none transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed">−</button>
+              <span className="w-5 text-center text-[#e8ddd0] font-mono text-sm">{!role.playable ? "–" : role.count}</span>
+              <button onClick={() => updateCount(role.id, 1)} disabled={!role.playable}
+                className="w-7 h-7 rounded-full border border-[#c9a030]/30 text-[#c9a030] flex items-center justify-center text-base leading-none transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed">+</button>
             </div>
           </div>
         ))}
@@ -518,11 +528,82 @@ function RolesScreen() {
   );
 }
 
+// ── DEV : Vue joueur simulée (invisible en production) ───────────────────────
+
+function SimulatedPlayerModal({ game, playerId, onClose }: {
+  game: GameState;
+  playerId: string;
+  onClose: () => void;
+}) {
+  const pv = buildPlayerView(game, playerId);
+  if (!pv) return null;
+  const { player, instruction, phase, phaseNumber, currentVotes } = pv;
+  const phaseLabel = phase === "night" ? `🌙 Nuit ${phaseNumber}` : phase === "day" ? `☀️ Jour ${phaseNumber}` : phase === "vote" ? `🗳️ Vote` : "⏳ En attente";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.88)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: "#0b0a0f", border: "2px dashed rgba(201,160,48,0.4)", maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 pt-4 pb-3" style={{ background: "rgba(201,160,48,0.06)", borderBottom: "1px solid rgba(201,160,48,0.15)" }}>
+          <div>
+            <p className="text-[8px] text-[#c9a030] font-mono uppercase tracking-widest mb-0.5">🧪 Vue simulée — MJ uniquement</p>
+            <p className="text-sm font-bold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>{player.name}</p>
+            <p className="text-[9px] text-[#9490a0] font-mono">{phaseLabel}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#9490a0] border border-[#9490a0]/25 text-xl leading-none">×</button>
+        </div>
+
+        <div className="px-4 py-4 flex flex-col gap-3">
+          {player.status === "dead" ? (
+            <div className="rounded-xl p-4 flex flex-col items-center gap-2" style={{ background: "#16141f", border: "1px solid rgba(255,0,0,0.2)" }}>
+              <div className="text-3xl">💀</div>
+              <p className="text-base font-bold text-red-400" style={{ fontFamily: "Cinzel, serif" }}>Tu es mort(e)</p>
+            </div>
+          ) : player.role ? (
+            <div className="rounded-xl p-4 flex flex-col items-center gap-2" style={{ background: "linear-gradient(160deg, #1c1040, #0e0824)", border: "1px solid rgba(201,160,48,0.4)" }}>
+              <div className="text-3xl">{player.roleData?.emoji ?? "❓"}</div>
+              <p className="text-base font-bold text-[#c9a030]" style={{ fontFamily: "Cinzel, serif" }}>{player.roleData?.name ?? player.role}</p>
+              <p className="text-xs text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{player.roleData?.description}</p>
+              {player.isCapitaine && <span className="text-[9px] text-[#c9a030] font-mono">⚔️ Capitaine</span>}
+            </div>
+          ) : (
+            <div className="rounded-xl p-4 flex flex-col items-center gap-2" style={{ background: "#16141f", border: "1px solid rgba(201,160,48,0.15)" }}>
+              <div className="text-3xl">⏳</div>
+              <p className="text-base text-[#c9a030]" style={{ fontFamily: "Cinzel, serif" }}>Rôle non attribué</p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-xl" style={{ background: "#16141f", border: "1px solid rgba(139,28,28,0.28)" }}>
+            <p className="text-[8px] text-[#8b1c1c] font-mono uppercase tracking-wider mb-1">Consigne actuelle</p>
+            <p className="text-xs text-[#c8c0b0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{instruction}</p>
+          </div>
+
+          {phase === "vote" && currentVotes.length > 0 && player.status !== "dead" && (
+            <div>
+              <p className="text-[8px] text-[#9490a0] font-mono uppercase tracking-widest mb-2">Votes visibles</p>
+              {currentVotes.filter((t) => t.status !== "dead" && t.id !== player.id).map((target) => (
+                <div key={target.id} className="mb-1 flex items-center justify-between p-2 rounded-lg" style={{ background: "#16141f", border: "1px solid rgba(201,160,48,0.1)" }}>
+                  <span className="text-xs text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>{target.name}</span>
+                  <span className="text-xs font-mono text-[#c9a030]">{target.votes} voix</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-center text-[8px] text-[#9490a0]/50 font-mono pt-1">Aucune action n'est envoyée depuis cette vue</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Écran : Tableau de bord MJ ────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { navigate, state, gmNextPhase, gmEliminate, gmSetCaptain, gmEndGame, setError } = useGame();
+  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError } = useGame();
   const [showNightWizard, setShowNightWizard] = useState(false);
+  const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
+  const [voteResolving, setVoteResolving] = useState(false);
+  const [confirmNoVote, setConfirmNoVote] = useState(false);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -537,6 +618,50 @@ function DashboardScreen() {
     } catch (e: unknown) {
       setError((e as Error).message);
     }
+  };
+
+  // Calcule le résultat du vote actuel (votes des vivants uniquement)
+  const voteResult = (() => {
+    if (phase !== "vote") return null;
+    const aliveIds = new Set(game.players.filter((p) => p.status !== "dead").map((p) => p.id));
+    const counts: Record<string, number> = {};
+    for (const [voterId, targetId] of Object.entries(game.votesByPlayer ?? {})) {
+      if (!aliveIds.has(voterId)) continue;
+      counts[targetId] = (counts[targetId] ?? 0) + 1;
+    }
+    const entries = Object.entries(counts);
+    if (entries.length === 0) return { type: "no_votes" as const };
+    const maxVotes = Math.max(...entries.map(([, v]) => v));
+    const top = entries.filter(([, v]) => v === maxVotes);
+    if (top.length > 1) {
+      return {
+        type: "tie" as const,
+        players: top.map(([id, votes]) => ({ id, votes, name: game.players.find((p) => p.id === id)?.name ?? id })),
+      };
+    }
+    const [winnerId, winnerVotes] = top[0];
+    return { type: "winner" as const, playerId: winnerId, playerName: game.players.find((p) => p.id === winnerId)?.name ?? winnerId, votes: winnerVotes };
+  })();
+
+  const handleResolveVote = async (overrideWinnerId?: string | null) => {
+    if (overrideWinnerId !== undefined) {
+      // Cas confirmation "pas d'élimination"
+      setConfirmNoVote(false);
+      setVoteResolving(true);
+      try { await gmResolveVote(null); } catch (e: unknown) { setError((e as Error).message); } finally { setVoteResolving(false); }
+      return;
+    }
+    if (!voteResult) return;
+    if (voteResult.type === "tie") {
+      setError(`Égalité entre : ${voteResult.players.map((p) => p.name).join(", ")}. Départagez manuellement puis relancez.`);
+      return;
+    }
+    if (voteResult.type === "no_votes") {
+      setConfirmNoVote(true);
+      return;
+    }
+    setVoteResolving(true);
+    try { await gmResolveVote(voteResult.playerId); } catch (e: unknown) { setError((e as Error).message); } finally { setVoteResolving(false); }
   };
 
   const handleEliminate = async (playerId: string) => {
@@ -561,6 +686,26 @@ function DashboardScreen() {
     <div className="min-h-full pb-6 relative" style={{ background: "radial-gradient(ellipse at 50% 0%, #16101f 0%, #0b0a0f 70%)" }}>
       {/* Modal Chasseur — bloque l'interface jusqu'au tir */}
       {game.pendingHunterActions?.length > 0 && <HunterModal game={game} />}
+
+      {/* DEV : Vue joueur simulée */}
+      {import.meta.env.DEV && simPlayerId && (
+        <SimulatedPlayerModal game={game} playerId={simPlayerId} onClose={() => setSimPlayerId(null)} />
+      )}
+
+      {/* Bannière de victoire */}
+      {phase === "end" && game.winner && (
+        <div className="px-5 pt-5 pb-0">
+          <div className="p-4 rounded-2xl text-center" style={{
+            background: game.winner === "wolves" ? "rgba(139,28,28,0.25)" : "rgba(16,185,129,0.12)",
+            border: `1px solid ${game.winner === "wolves" ? "rgba(139,28,28,0.6)" : "rgba(16,185,129,0.4)"}`,
+          }}>
+            <p className="text-2xl mb-1">{game.winner === "wolves" ? "🐺" : "🏡"}</p>
+            <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: game.winner === "wolves" ? "#f87171" : "#34d399" }}>
+              {game.winner === "wolves" ? "Les Loups-Garous ont gagné !" : "Le Village a gagné !"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* En-tête de phase */}
       <div className="px-5 pt-6 pb-5" style={{ background: phaseInfo.gradient }}>
@@ -632,7 +777,7 @@ function DashboardScreen() {
 
         <div className="flex flex-col gap-2">
           {game.players.map((p) => {
-            const roleInfo = p.role ? ROLE_MAP[p.role] : null;
+            const roleInfo = p.role ? ROLES_MAP[p.role] : null;
             const isLover = game.cupidLovers?.includes(p.id);
             return (
               <div key={p.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${p.status === "dead" ? "opacity-45" : ""}`}
@@ -660,6 +805,11 @@ function DashboardScreen() {
                       </button>
                     </div>
                   )}
+                  {import.meta.env.DEV && (
+                    <button onClick={() => setSimPlayerId(p.id)} title="Vue joueur simulée (DEV)" className="w-6 h-6 rounded flex items-center justify-center text-[#9490a0]/40 hover:text-[#c9a030] transition-colors ml-0.5">
+                      <Eye size={10} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -675,7 +825,29 @@ function DashboardScreen() {
         {phase === "vote" && (
           <>
             <GoldOutlineButton onClick={() => navigate("vote")}>📊 Voir les votes</GoldOutlineButton>
-            <PrimaryButton onClick={handleNextPhase}>🌙 Passer à la nuit →</PrimaryButton>
+            {confirmNoVote ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] text-[#9490a0] font-mono text-center">Aucun vote enregistré. Passer sans élimination ?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmNoVote(false)} className="flex-1 py-2.5 rounded-xl text-xs border transition-all" style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                    Annuler
+                  </button>
+                  <button onClick={() => handleResolveVote(null)} className="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all" style={{ background: "rgba(139,28,28,0.3)", color: "#f0e8d0", fontFamily: "Cinzel, serif" }}>
+                    🌙 Passer sans tuer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PrimaryButton onClick={() => handleResolveVote()} disabled={voteResolving}>
+                {voteResolving
+                  ? "Résolution..."
+                  : voteResult?.type === "winner"
+                  ? `⚖️ Éliminer ${voteResult.playerName} (${voteResult.votes} vote${voteResult.votes > 1 ? "s" : ""})`
+                  : voteResult?.type === "tie"
+                  ? "⚠️ Égalité — choisir"
+                  : "⚖️ Résoudre le vote"}
+              </PrimaryButton>
+            )}
           </>
         )}
         {phase === "waiting" && (
@@ -691,6 +863,12 @@ function DashboardScreen() {
             <button onClick={() => gmEndGame("wolves")} className="flex-1 py-2.5 rounded-xl text-[11px] border transition-all active:scale-95" style={{ borderColor: "rgba(139,28,28,0.35)", color: "#f0e8d0", fontFamily: "Cinzel, serif", background: "rgba(139,28,28,0.15)" }}>
               🐺 Loups gagnent
             </button>
+          </div>
+        )}
+        {phase === "end" && (
+          <div className="flex flex-col gap-2.5 mt-2">
+            <PrimaryButton onClick={() => navigate("create")}>⚔ Nouvelle partie</PrimaryButton>
+            <GoldOutlineButton onClick={() => navigate("home")}>← Retour à l'accueil</GoldOutlineButton>
           </div>
         )}
       </div>
@@ -719,11 +897,11 @@ function PlayerViewScreen() {
     );
   }
 
-  const { player, instruction, phase, phaseNumber, gameName, currentVotes } = pv;
+  const { player, instruction, phase, phaseNumber, gameName, currentVotes, winner } = pv;
   const phaseLabel = phase === "night" ? `🌙 Nuit ${phaseNumber}` : phase === "day" ? `☀️ Jour ${phaseNumber}` : phase === "vote" ? `🗳️ Vote` : phase === "end" ? "🏆 Fin de partie" : "⏳ En attente";
 
   const handleVote = async (targetId: string) => {
-    if (myVote || phase !== "vote") return;
+    if (phase !== "vote") return;
     setMyVote(targetId);
     await playerVote(targetId);
   };
@@ -747,8 +925,14 @@ function PlayerViewScreen() {
         {player.isCapitaine && <span className="text-[10px] text-[#c9a030] font-mono">⚔️ Capitaine</span>}
       </div>
 
-      {/* Carte de rôle */}
-      {player.role && player.status !== "dead" ? (
+      {/* Carte de rôle / mort / attente */}
+      {player.status === "dead" ? (
+        <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "#16141f", border: "1px solid rgba(255,0,0,0.2)" }}>
+          <div className="text-5xl">💀</div>
+          <p className="text-xl font-bold text-red-400" style={{ fontFamily: "Cinzel, serif" }}>Tu es mort(e)</p>
+          <p className="text-sm text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>Reste silencieux·se. Ne révèle pas ton rôle.</p>
+        </div>
+      ) : player.role ? (
         <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #1c1040 0%, #0e0824 100%)", border: "1px solid rgba(201,160,48,0.4)", boxShadow: "0 0 50px rgba(139,28,28,0.15), inset 0 1px 0 rgba(201,160,48,0.12)" }}>
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c9a030]/55 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c9a030]/55 to-transparent" />
@@ -771,10 +955,26 @@ function PlayerViewScreen() {
           </div>
         </div>
       ) : (
-        <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "#16141f", border: "1px solid rgba(255,0,0,0.2)" }}>
-          <div className="text-5xl">💀</div>
-          <p className="text-xl font-bold text-red-400" style={{ fontFamily: "Cinzel, serif" }}>Tu es mort(e)</p>
-          <p className="text-sm text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>Reste silencieux·se. Ne révèle pas ton rôle.</p>
+        <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "#16141f", border: "1px solid rgba(201,160,48,0.15)" }}>
+          <div className="text-5xl">⏳</div>
+          <p className="text-xl font-bold text-[#c9a030]" style={{ fontFamily: "Cinzel, serif" }}>En attente</p>
+          <p className="text-sm text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>Le Maître du Jeu n'a pas encore lancé la partie.</p>
+        </div>
+      )}
+
+      {/* Bannière de victoire (fin de partie) */}
+      {phase === "end" && winner && (
+        <div className="mx-5 mt-4 p-5 rounded-2xl text-center" style={{
+          background: winner === "wolves" ? "rgba(139,28,28,0.2)" : "rgba(16,185,129,0.1)",
+          border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.55)" : "rgba(16,185,129,0.35)"}`,
+        }}>
+          <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : "🏡"}</p>
+          <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: winner === "wolves" ? "#f87171" : "#34d399" }}>
+            {winner === "wolves" ? "Les Loups ont gagné !" : "Le Village a gagné !"}
+          </p>
+          <p className="text-xs text-[#9490a0] mt-2" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
+            Vous pouvez révéler vos rôles.
+          </p>
         </div>
       )}
 
@@ -805,8 +1005,8 @@ function PlayerViewScreen() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-sm font-mono text-[#e8ddd0] w-4 text-center">{target.votes}</span>
-                      <button onClick={() => handleVote(target.id)} disabled={!!myVote}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border disabled:opacity-35 ${voted ? "bg-[#8b1c1c]/25 border-[#8b1c1c]/50 text-red-400" : "border-[#c9a030]/30 text-[#c9a030]"}`}
+                      <button onClick={() => handleVote(target.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border ${voted ? "bg-[#8b1c1c]/25 border-[#8b1c1c]/50 text-red-400" : "border-[#c9a030]/30 text-[#c9a030]"}`}
                         style={{ fontFamily: "Cinzel, serif", fontSize: "11px" }}>
                         {voted ? "✓" : "Voter"}
                       </button>
@@ -915,7 +1115,7 @@ function VoteScreen() {
         {players.map((p) => {
           const pct = totalVotes > 0 ? (p.votes / totalVotes) * 100 : 0;
           const isLeader = p.votes > 0 && p.votes === maxVotes;
-          const roleInfo = p.role ? ROLE_MAP[p.role] : null;
+          const roleInfo = p.role ? ROLES_MAP[p.role] : null;
           return (
             <div key={p.id} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLeader ? "rgba(139,28,28,0.55)" : "rgba(201,160,48,0.1)"}` }}>
               <div className="flex items-center gap-3 p-3" style={{ background: isLeader ? "rgba(139,28,28,0.1)" : "#16141f" }}>
@@ -953,6 +1153,7 @@ function JoinScreen() {
   const [playerName, setPlayerName] = useState("");
   const [loading, setLoading] = useState(false);
   const [savedSession, setSavedSession] = useState<{ gameId: string } | null>(null);
+  const [tokenResetMsg, setTokenResetMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const match = window.location.pathname.match(/\/join\/([A-Z0-9]+)/i);
@@ -1039,6 +1240,23 @@ function JoinScreen() {
         <PrimaryButton onClick={handleJoin} disabled={!gameId.trim() || !playerName.trim() || loading}>
           {loading ? "Connexion..." : "🔗 Rejoindre la partie"}
         </PrimaryButton>
+
+        {import.meta.env.DEV && (
+          <div className="flex flex-col items-center gap-1 mt-2">
+            <button
+              onClick={() => {
+                localStorage.removeItem("lycan_session");
+                setSavedSession(null);
+                setTokenResetMsg("Token local réinitialisé pour le test.");
+                setTimeout(() => setTokenResetMsg(null), 3000);
+              }}
+              className="text-[10px] font-mono text-[#9490a0] underline underline-offset-2 transition-colors hover:text-[#c9a030]"
+            >
+              🧪 Réinitialiser mon token joueur local
+            </button>
+            {tokenResetMsg && <p className="text-[9px] text-emerald-400 font-mono">{tokenResetMsg}</p>}
+          </div>
+        )}
       </div>
     </div>
   );

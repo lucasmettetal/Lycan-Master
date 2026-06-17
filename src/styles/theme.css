@@ -39,6 +39,26 @@
   --sidebar-accent-foreground: #e8ddd0;
   --sidebar-border: rgba(201, 160, 48, 0.15);
   --sidebar-ring: #c9a030;
+
+  /* DA — Village nocturne */
+  --gold: #c9a030;
+  --gold-dim: rgba(201, 160, 48, 0.35);
+  --gold-glow: rgba(201, 160, 48, 0.18);
+  --gold-subtle: rgba(201, 160, 48, 0.07);
+  --red-wolf: #8b1c1c;
+  --red-wolf-dim: rgba(139, 28, 28, 0.25);
+  --red-wolf-glow: rgba(139, 28, 28, 0.35);
+  --bg-deep: #0b0a0f;
+  --bg-card: #16141f;
+  --bg-elevated: #1e1b2a;
+  --bg-surface: #252235;
+  --text-primary: #e8ddd0;
+  --text-secondary: #c8c0b0;
+  --text-muted: #9490a0;
+  --font-display: "Cinzel Decorative", "Cinzel", serif;
+  --font-title: "Cinzel", serif;
+  --font-body: "Crimson Pro", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 .dark {

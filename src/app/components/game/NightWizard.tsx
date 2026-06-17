@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Check, ChevronRight, Smartphone, RotateCcw } from "lucide-react";
 import { useGame } from "../../context/GameContext";
 import type { GameState, Player, PlayerAction } from "../../context/GameContext";
+import { ROLES } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -22,16 +23,22 @@ interface SeerReveal {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const WOLF_ROLE_IDS = new Set(ROLES.filter((r) => r.category === "wolves").map((r) => r.id));
+
 function buildSteps(game: GameState): Step[] {
   const steps: Step[] = [];
   const hasAliveRole = (id: string) =>
     game.players.some((p) => p.role === id && p.status !== "dead");
+  const hasAliveWolf = game.players.some(
+    (p) => WOLF_ROLE_IDS.has(p.role ?? "") && p.status !== "dead"
+  );
 
   if (game.phaseNumber === 1 && hasAliveRole("cupid"))
     steps.push({ id: "cupid", label: "Cupidon", emoji: "💘" });
   if (hasAliveRole("seer"))
     steps.push({ id: "seer", label: "Voyante", emoji: "🔮" });
-  steps.push({ id: "wolves", label: "Loups", emoji: "🐺" });
+  if (hasAliveWolf)
+    steps.push({ id: "wolves", label: "Loups", emoji: "🐺" });
   if (hasAliveRole("witch") && (game.witchPotions?.life || game.witchPotions?.death))
     steps.push({ id: "witch", label: "Sorcière", emoji: "⚗️" });
 
@@ -558,17 +565,27 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
 
   const handleSave = async () => {
     setLoading(true);
-    await gmWitchSave();
-    setLifeUsed(true);
-    setLoading(false);
+    try {
+      await gmWitchSave();
+      setLifeUsed(true);
+    } catch (e: unknown) {
+      console.error("[WitchStep] handleSave:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKill = async () => {
     if (!deathTarget) return;
     setLoading(true);
-    await gmWitchKill(deathTarget);
-    setDeathUsed(true);
-    setLoading(false);
+    try {
+      await gmWitchKill(deathTarget);
+      setDeathUsed(true);
+    } catch (e: unknown) {
+      console.error("[WitchStep] handleKill:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (mode === "waiting") {
@@ -596,44 +613,41 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
         />
       )}
 
-      {/* Potion de vie */}
-      {witchPotions?.life && (
+      {/* Potion de vie — visible si disponible OU déjà utilisée cette nuit */}
+      {(witchPotions?.life || lifeUsed) && (
         <div className="p-3 rounded-xl" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
           <p className="text-[9px] text-emerald-400 font-mono uppercase tracking-widest mb-2">🧪 Potion de vie</p>
-          {victim ? (
-            lifeUsed ? (
-              <p className="text-xs text-emerald-400 font-mono">✓ {victim.name} sera sauvé(e) cette nuit</p>
-            ) : (
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-[#c8c0b0] flex-1" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-                  Les Loups ciblent <strong className="text-red-400">{victim.name}</strong>. Sauver ?
-                </p>
-                <button onClick={handleSave} disabled={loading}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/10 transition-all"
-                  style={{ fontFamily: "Cinzel, serif" }}>
-                  Sauver
-                </button>
-              </div>
-            )
+          {lifeUsed ? (
+            <p className="text-xs text-emerald-400 font-mono">✓ {victim?.name ?? "victime"} sera sauvé(e) cette nuit</p>
+          ) : victim ? (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-[#c8c0b0] flex-1" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
+                Les Loups ciblent <strong className="text-red-400">{victim.name}</strong>. Sauver ?
+              </p>
+              <button onClick={handleSave} disabled={loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/10 transition-all"
+                style={{ fontFamily: "Cinzel, serif" }}>
+                {loading ? "..." : "Sauver"}
+              </button>
+            </div>
           ) : (
-            <p className="text-xs text-[#9490a0] font-mono">
-              {nightActions?.witchSaved ? "✓ Sauvegarde déjà confirmée" : "Les Loups n'ont pas ciblé de victime"}
-            </p>
+            <p className="text-xs text-[#9490a0] font-mono">Les Loups n'ont pas ciblé de victime</p>
           )}
         </div>
       )}
 
-      {/* Potion de mort */}
-      {witchPotions?.death && (
+      {/* Potion de mort — visible si disponible OU déjà utilisée cette nuit */}
+      {(witchPotions?.death || deathUsed) && (
         <div className="p-3 rounded-xl" style={{ background: "rgba(139,28,28,0.06)", border: "1px solid rgba(139,28,28,0.2)" }}>
           <p className="text-[9px] text-red-400 font-mono uppercase tracking-widest mb-2">💀 Potion de mort</p>
           {deathUsed ? (
             <p className="text-xs text-red-400 font-mono">
-              ✓ Potion utilisée sur {game.players.find((p) => p.id === deathTarget)?.name}
+              ✓ Potion utilisée sur {game.players.find((p) => p.id === deathTarget)?.name ?? "cible"}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
               <PlayerPicker players={game.players} selected={deathTarget} onSelect={setDeathTarget}
+                exclude={witch ? [witch.id] : []}
                 label="Tuer quelqu'un (optionnel)" />
               {deathTarget && (
                 <button onClick={handleKill} disabled={loading}
@@ -665,7 +679,9 @@ export function NightWizard({ onResolve }: { onResolve: () => void }) {
   const [allDone, setAllDone] = useState(false);
   const [resolving, setResolving] = useState(false);
 
-  const steps = buildSteps(game);
+  // Gelé au montage : buildSteps ne doit pas retirer dynamiquement une étape active
+  // (ex : Sorcière utilise les deux potions → witchPotions vides → étape disparaît → currentStep undefined → crash)
+  const [steps] = useState(() => buildSteps(game));
   const currentStep = steps[stepIndex];
 
   const advance = () => {
@@ -678,8 +694,13 @@ export function NightWizard({ onResolve }: { onResolve: () => void }) {
 
   const handleResolve = async () => {
     setResolving(true);
-    await gmResolveNight();
-    onResolve();
+    try {
+      await gmResolveNight();
+      onResolve();
+    } catch (e: unknown) {
+      console.error("[NightWizard] handleResolve:", e);
+      setResolving(false);
+    }
   };
 
   if (allDone) {
