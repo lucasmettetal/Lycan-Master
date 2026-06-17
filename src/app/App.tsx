@@ -1155,9 +1155,22 @@ function AppInner() {
   const playerScreens: AppView[] = ["home", "join", "player"];
   const visibleDots = state.isGM ? gmScreens : playerScreens;
 
+  // Production (build web ou APK Android) : plein écran, aucun élément de debug
+  if (import.meta.env.PROD) {
+    return (
+      <div
+        className="min-h-screen overflow-y-auto"
+        style={{ background: "radial-gradient(ellipse at 50% 35%, #1c1228 0%, #05040a 70%)" }}
+      >
+        {renderScreen()}
+      </div>
+    );
+  }
+
+  // Dev uniquement : cadre téléphone simulé + navigation rapide + label
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative" style={{ background: "radial-gradient(ellipse at 50% 35%, #1c1228 0%, #05040a 70%)" }}>
-      {/* Points de navigation latéraux */}
+      {/* Points de navigation latéraux (dev uniquement) */}
       <div className="fixed left-5 top-1/2 -translate-y-1/2 flex flex-col gap-2.5 z-50">
         {visibleDots.map((s) => (
             <button key={s} onClick={() => navigate(s)} title={SCREEN_LABELS[s]} className="group relative flex items-center">
@@ -1169,10 +1182,10 @@ function AppInner() {
           ))}
       </div>
 
-      {/* Cadre téléphone */}
+      {/* Cadre téléphone simulé (dev uniquement) */}
       <div className="relative rounded-[44px] overflow-hidden flex-shrink-0"
         style={{ width: "390px", height: "844px", background: "#0b0a0f", border: "1px solid rgba(201,160,48,0.22)", boxShadow: "0 0 0 8px #0e0d14, 0 0 0 9px rgba(201,160,48,0.1), 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(139,28,28,0.12)" }}>
-        {/* Barre de statut */}
+        {/* Barre de statut simulée */}
         <div className="flex items-center justify-between px-7 pt-3.5 pb-1.5" style={{ background: "rgba(0,0,0,0.5)" }}>
           <span className="text-[11px] text-[#e8ddd0]/55 font-mono">22:47</span>
           <div className="w-28 h-5 bg-black rounded-full" />
@@ -1188,7 +1201,7 @@ function AppInner() {
         </div>
       </div>
 
-      {/* Label de l'écran actuel */}
+      {/* Label écran actuel (dev uniquement) */}
       <div className="fixed bottom-5 left-1/2 -translate-x-1/2">
         <div className="px-4 py-1.5 rounded-full border" style={{ background: "rgba(22,20,31,0.9)", borderColor: "rgba(201,160,48,0.2)" }}>
           <span className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest">{SCREEN_LABELS[view]}</span>
