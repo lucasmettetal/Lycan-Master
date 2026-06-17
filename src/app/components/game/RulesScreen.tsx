@@ -19,7 +19,6 @@ type RoleDetail = {
 };
 
 const ROLE_DETAILS: RoleDetail[] = [
-  // ── Loups ─────────────────────────────────────────────────────────────────
   {
     id: "werewolf",
     name: "Loup-Garou",
@@ -35,7 +34,6 @@ const ROLE_DETAILS: RoleDetail[] = [
       "Invitez les Loups à ouvrir les yeux ensemble, à désigner une victime d'un commun accord, puis à se rendormir avant l'annonce du matin. Pour les groupes bruyants, insistez sur le silence absolu.",
     minPlayers: 5,
   },
-  // ── Village ───────────────────────────────────────────────────────────────
   {
     id: "villager",
     name: "Villageois",
@@ -81,7 +79,6 @@ const ROLE_DETAILS: RoleDetail[] = [
       "Précisez en début de partie si la règle du 'regard surpris = mort immédiate' s'applique. Demandez aux Loups de rester vigilants. C'est un rôle à fort potentiel mais à risque élevé.",
     minPlayers: 7,
   },
-  // ── Spéciaux ──────────────────────────────────────────────────────────────
   {
     id: "seer",
     name: "Voyante",
@@ -144,6 +141,18 @@ const ROLE_DETAILS: RoleDetail[] = [
   },
 ];
 
+const ROLE_IMAGES: Record<string, string> = {
+  werewolf:   "/lycan/roles/loup-garou.png",
+  bigbadwolf: "/lycan/roles/loup-garou.png",
+  seer:       "/lycan/roles/voyante.png",
+  witch:      "/lycan/roles/sorciere.png",
+  hunter:     "/lycan/roles/chasseur.png",
+  cupid:      "/lycan/roles/cupidon.png",
+  villager:   "/lycan/roles/villageois.png",
+  captain:    "/lycan/roles/villageois.png",
+  littlegirl: "/lycan/roles/villageois.png",
+};
+
 // ── Composant principal ────────────────────────────────────────────────────────
 
 type CategoryId = "wolves" | "village" | "special";
@@ -156,14 +165,15 @@ const CATEGORIES: { id: CategoryId; label: string; emoji: string }[] = [
 
 function RoleCard({ role }: { role: RoleDetail }) {
   const [expanded, setExpanded] = useState(false);
+  const roleImg = ROLE_IMAGES[role.id] ?? null;
 
   return (
     <div
       className="rounded-2xl overflow-hidden transition-all"
       style={{
-        background: "#16141f",
-        border: `1px solid ${expanded ? role.accentColor + "55" : "rgba(201,160,48,0.12)"}`,
-        boxShadow: expanded ? `0 0 20px ${role.accentColor}15` : "none",
+        background: "rgba(22,20,31,0.82)",
+        border: `1px solid ${expanded ? role.accentColor + "55" : "var(--gold-subtle)"}`,
+        boxShadow: expanded ? `0 0 20px ${role.accentColor}18` : "none",
       }}
     >
       {/* En-tête cliquable */}
@@ -171,16 +181,27 @@ function RoleCard({ role }: { role: RoleDetail }) {
         className="w-full flex items-center gap-3 p-4 text-left transition-all active:scale-[0.99]"
         onClick={() => setExpanded((v) => !v)}
       >
+        {/* Icône : image de rôle ou emoji */}
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-          style={{ background: role.accentColor + "18", border: `1px solid ${role.accentColor}35` }}
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 overflow-hidden relative"
+          style={{ border: `1px solid ${role.accentColor}35` }}
         >
-          {role.emoji}
+          {roleImg ? (
+            <img
+              src={roleImg}
+              alt={role.name}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+            />
+          ) : (
+            <span style={{ background: role.accentColor + "18" }} className="w-full h-full flex items-center justify-center">
+              {role.emoji}
+            </span>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="text-sm font-semibold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>
+            <p className="text-sm font-semibold truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
               {role.name}
             </p>
             <span
@@ -190,12 +211,12 @@ function RoleCard({ role }: { role: RoleDetail }) {
               {role.team}
             </span>
           </div>
-          <p className="text-[11px] text-[#9490a0] leading-snug" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
+          <p className="text-[11px] leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>
             {role.shortDesc}
           </p>
         </div>
 
-        <div className="flex-shrink-0 text-[#9490a0]">
+        <div className="flex-shrink-0" style={{ color: "var(--text-muted)" }}>
           {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </div>
       </button>
@@ -203,9 +224,8 @@ function RoleCard({ role }: { role: RoleDetail }) {
       {/* Contenu étendu */}
       {expanded && (
         <div className="px-4 pb-5 flex flex-col gap-4 border-t" style={{ borderColor: "rgba(201,160,48,0.08)" }}>
-          {/* Moment d'action */}
           <div className="pt-3 flex items-center gap-2">
-            <span className="text-[9px] text-[#9490a0] font-mono uppercase tracking-widest">Action :</span>
+            <span className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>Action :</span>
             <span
               className="text-[10px] px-2 py-0.5 rounded font-mono"
               style={{ background: role.accentColor + "15", color: role.accentColor }}
@@ -214,27 +234,22 @@ function RoleCard({ role }: { role: RoleDetail }) {
             </span>
           </div>
 
-          {/* Description complète */}
           <div>
-            <p className="text-[9px] text-[#9490a0] font-mono uppercase tracking-widest mb-1.5">Description</p>
-            <p className="text-sm text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
+            <p className="text-[9px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "var(--text-muted)" }}>Description</p>
+            <p className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
               {role.fullDesc}
             </p>
           </div>
 
-          {/* Conseils MJ */}
-          <div
-            className="p-3 rounded-xl"
-            style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.14)" }}
-          >
-            <p className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest mb-1.5">💡 Conseils MJ</p>
-            <p className="text-[12px] text-[#c8c0b0]/85 leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
+          <div className="p-3 rounded-xl" style={{ background: "var(--gold-subtle)", border: "1px solid var(--gold-dim)" }}>
+            <p className="text-[9px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "var(--gold)" }}>💡 Conseils MJ</p>
+            <p className="text-[12px] leading-relaxed" style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--text-secondary)", opacity: 0.9 }}>
               {role.gmTips}
             </p>
           </div>
 
           {role.minPlayers && (
-            <p className="text-[10px] text-[#9490a0] font-mono">
+            <p className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
               Recommandé à partir de <span style={{ color: role.accentColor }}>{role.minPlayers} joueurs</span>
             </p>
           )}
@@ -251,92 +266,96 @@ export function RulesScreen() {
   const filtered = ROLE_DETAILS.filter((r) => r.category === activeCategory);
 
   return (
-    <div
-      className="min-h-full pb-8"
-      style={{ background: "radial-gradient(ellipse at 50% 0%, #16101f 0%, #0b0a0f 70%)" }}
-    >
-      {/* En-tête */}
-      <div className="px-5 pt-6 pb-4">
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={() => navigate("home")}
-            className="w-8 h-8 rounded-full border border-[#c9a030]/30 flex items-center justify-center text-[#c9a030] transition-all active:scale-90 flex-shrink-0"
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <div>
-            <h2 className="text-lg font-semibold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>
-              Règles & rôles
-            </h2>
-            <p className="text-[10px] text-[#9490a0] font-mono">{ROLE_DETAILS.length} rôles disponibles</p>
+    <div className="relative min-h-full pb-8" style={{ background: "var(--bg-deep)" }}>
+
+      {/* Background */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+        <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: "linear-gradient(180deg, rgba(11,10,15,0.38) 0%, rgba(11,10,15,0) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.28)" }} />
+      </div>
+
+      <div className="relative z-10">
+        {/* En-tête */}
+        <div className="px-5 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => navigate("home")}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
+              style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <div>
+              <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
+                Règles & rôles
+              </h2>
+              <p className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{ROLE_DETAILS.length} rôles disponibles</p>
+            </div>
+          </div>
+
+          {/* Résumé */}
+          <div className="p-4 rounded-xl mb-5" style={{ background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-subtle)" }}>
+            <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "var(--gold)" }}>En bref</p>
+            <p className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+              Les <span style={{ color: "#ef4444" }}>Loups-Garous</span> éliminent les Villageois chaque nuit. Le{" "}
+              <span style={{ color: "#22c55e" }}>Village</span> tente de les identifier et de les éliminer par vote pendant le jour. La partie se termine quand un camp ne peut plus gagner.
+            </p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className="flex-1 py-2 rounded-xl text-[11px] font-medium transition-all border"
+                style={{
+                  fontFamily: "var(--font-title)",
+                  background: activeCategory === cat.id ? "var(--red-wolf-dim)" : "rgba(11,10,15,0.45)",
+                  borderColor: activeCategory === cat.id ? "rgba(139,28,28,0.75)" : "var(--gold-subtle)",
+                  color: activeCategory === cat.id ? "var(--text-primary)" : "var(--text-muted)",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {cat.emoji} {cat.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Encart résumé du jeu */}
-        <div
-          className="p-4 rounded-xl mb-5"
-          style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.15)" }}
-        >
-          <p className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest mb-2">En bref</p>
-          <p className="text-sm text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-            Les <span style={{ color: "#ef4444" }}>Loups-Garous</span> éliminent les Villageois chaque nuit. Le{" "}
-            <span style={{ color: "#22c55e" }}>Village</span> tente de les identifier et de les éliminer par vote pendant le jour. La partie se termine quand un camp ne peut plus gagner.
-          </p>
+        {/* Liste des rôles */}
+        <div className="px-5 flex flex-col gap-3">
+          {filtered.length === 0 ? (
+            <p className="text-center text-sm py-8 font-mono" style={{ color: "var(--text-muted)" }}>Aucun rôle dans cette catégorie</p>
+          ) : (
+            filtered.map((role) => <RoleCard key={role.id} role={role} />)
+          )}
         </div>
 
-        {/* Tabs catégories */}
-        <div className="flex gap-2">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className="flex-1 py-2 rounded-xl text-[11px] font-medium transition-all border"
-              style={{
-                fontFamily: "Cinzel, serif",
-                background: activeCategory === cat.id ? "rgba(139,28,28,0.28)" : "transparent",
-                borderColor: activeCategory === cat.id ? "rgba(139,28,28,0.75)" : "rgba(201,160,48,0.2)",
-                color: activeCategory === cat.id ? "#f0e8d0" : "#9490a0",
-                letterSpacing: "0.03em",
-              }}
-            >
-              {cat.emoji} {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Liste des rôles */}
-      <div className="px-5 flex flex-col gap-3">
-        {filtered.length === 0 ? (
-          <p className="text-center text-[#9490a0] text-sm py-8 font-mono">Aucun rôle dans cette catégorie</p>
-        ) : (
-          filtered.map((role) => <RoleCard key={role.id} role={role} />)
-        )}
-      </div>
-
-      {/* Ordre du tour */}
-      <div className="px-5 mt-6">
-        <div className="p-4 rounded-xl" style={{ background: "#16141f", border: "1px solid rgba(201,160,48,0.12)" }}>
-          <p className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest mb-3">Ordre du tour (nuit)</p>
-          <div className="flex flex-col gap-2">
-            {[
-              { n: 1, label: "Cupidon (Nuit 1 uniquement)", emoji: "💘" },
-              { n: 2, label: "Voyante", emoji: "🔮" },
-              { n: 3, label: "Loups-Garous", emoji: "🐺" },
-              { n: 4, label: "Sorcière", emoji: "⚗️" },
-            ].map((step) => (
-              <div key={step.n} className="flex items-center gap-2.5">
-                <div
-                  className="w-5 h-5 rounded-full border border-[#c9a030]/30 flex items-center justify-center flex-shrink-0"
-                >
-                  <span className="text-[8px] text-[#c9a030] font-mono">{step.n}</span>
+        {/* Ordre du tour */}
+        <div className="px-5 mt-6">
+          <div className="p-4 rounded-xl" style={{ background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-subtle)" }}>
+            <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--gold)" }}>Ordre du tour (nuit)</p>
+            <div className="flex flex-col gap-2">
+              {[
+                { n: 1, label: "Cupidon (Nuit 1 uniquement)", emoji: "💘" },
+                { n: 2, label: "Voyante", emoji: "🔮" },
+                { n: 3, label: "Loups-Garous", emoji: "🐺" },
+                { n: 4, label: "Sorcière", emoji: "⚗️" },
+              ].map((step) => (
+                <div key={step.n} className="flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ border: "1px solid var(--gold-dim)" }}>
+                    <span className="text-[8px] font-mono" style={{ color: "var(--gold)" }}>{step.n}</span>
+                  </div>
+                  <span className="text-sm">{step.emoji}</span>
+                  <p className="text-xs" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                    {step.label}
+                  </p>
                 </div>
-                <span className="text-sm">{step.emoji}</span>
-                <p className="text-xs text-[#c8c0b0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-                  {step.label}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
