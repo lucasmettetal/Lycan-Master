@@ -837,6 +837,7 @@ function DashboardScreen() {
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
+  const [successionDismissed, setSuccessionDismissed] = useState<string | null>(null);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -942,6 +943,48 @@ function DashboardScreen() {
       <div className="relative z-10">
         {/* Modal Chasseur — bloque l'interface jusqu'au tir */}
         {game.pendingHunterActions?.length > 0 && <HunterModal game={game} />}
+
+        {/* Modal Succession du Capitaine */}
+        {(() => {
+          const deadCap = game.players.find(p => p.isCapitaine && p.status === "dead");
+          const aliveCap = game.players.find(p => p.isCapitaine && p.status !== "dead");
+          if (!deadCap || aliveCap || phase === "waiting" || phase === "night" || phase === "end" || successionDismissed === deadCap.id) return null;
+          return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center px-5" style={{ background: "rgba(11,10,15,0.92)", backdropFilter: "blur(6px)" }}>
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: "rgba(20,16,28,0.98)", border: "1px solid rgba(201,160,48,0.25)" }}>
+                <div className="px-5 pt-5 pb-3 text-center" style={{ background: "rgba(201,160,48,0.05)", borderBottom: "1px solid rgba(201,160,48,0.1)" }}>
+                  <p className="text-2xl mb-2">⚔️</p>
+                  <h3 className="text-base font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--gold)" }}>Succession du Capitaine</h3>
+                  <p className="text-xs mt-1" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    {deadCap.name} est mort(e). Le Capitaine désigne son successeur.
+                  </p>
+                </div>
+                <div className="px-5 py-4 flex flex-col gap-2">
+                  {alivePlayers.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSetCaptain(p.id)}
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all active:scale-[0.98] border"
+                      style={{ background: "rgba(11,10,15,0.6)", borderColor: "rgba(201,160,48,0.1)" }}
+                    >
+                      <Crown size={13} style={{ color: "rgba(201,160,48,0.4)", flexShrink: 0 }} />
+                      <span className="text-sm" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="px-5 pb-5">
+                  <button
+                    onClick={() => setSuccessionDismissed(deadCap.id)}
+                    className="w-full text-center text-[10px] font-mono py-2 transition-all"
+                    style={{ color: "rgba(150,145,160,0.35)" }}
+                  >
+                    Jouer sans Capitaine
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* DEV : Vue joueur simulée */}
         {import.meta.env.DEV && simPlayerId && (
