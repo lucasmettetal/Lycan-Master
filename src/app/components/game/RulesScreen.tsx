@@ -260,7 +260,7 @@ function RoleCard({ role }: { role: RoleDetail }) {
 }
 
 export function RulesScreen() {
-  const { navigate } = useGame();
+  const { navigate, state } = useGame();
   const [activeCategory, setActiveCategory] = useState<CategoryId>("special");
 
   const filtered = ROLE_DETAILS.filter((r) => r.category === activeCategory);
@@ -280,7 +280,7 @@ export function RulesScreen() {
         <div className="px-5 pt-6 pb-4">
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => navigate("home")}
+              onClick={() => navigate(state.playerView ? "player" : "home")}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
               style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}
             >

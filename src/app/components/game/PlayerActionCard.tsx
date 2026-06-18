@@ -69,9 +69,11 @@ function TargetPicker({
 export function PlayerActionCard({
   action,
   playerView,
+  discreet = false,
 }: {
   action: PlayerAction;
   playerView: PlayerView;
+  discreet?: boolean;
 }) {
   const { playerResolveAction } = useGame();
   const [selected, setSelected] = useState<string[]>([]);
@@ -127,6 +129,7 @@ export function PlayerActionCard({
     setLoading(true);
     try {
       await playerResolveAction(action.id, buildPayload());
+      navigator.vibrate?.(50);
       setSubmitted(true);
     } catch (e) {
       console.error(e);
@@ -139,14 +142,19 @@ export function PlayerActionCard({
     return (
       <div
         className="p-4 rounded-2xl"
-        style={{ background: `${accentColor}10`, border: `1px solid ${accentColor}35` }}
+        style={{
+          background: discreet ? "rgba(10,9,14,0.85)" : `${accentColor}10`,
+          border: `1px solid ${discreet ? "rgba(120,115,135,0.1)" : `${accentColor}35`}`,
+        }}
       >
-        <p className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: accentColor }}>
-          ✓ Action envoyée
+        <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: discreet ? "rgba(150,145,160,0.3)" : accentColor }}>
+          {discreet ? "choix confirmé" : "✓ Action envoyée"}
         </p>
-        <p className="text-sm text-[#c8c0b0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-          {action.title} — en attente de confirmation du MJ.
-        </p>
+        {!discreet && (
+          <p className="text-sm text-[#c8c0b0] mt-1" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
+            {action.title} — en attente de confirmation du MJ.
+          </p>
+        )}
       </div>
     );
   }
@@ -155,9 +163,9 @@ export function PlayerActionCard({
     <div
       className="p-4 rounded-2xl flex flex-col gap-3"
       style={{
-        background: "#16141f",
-        border: `1.5px solid ${accentColor}45`,
-        boxShadow: `0 0 20px ${accentColor}0a`,
+        background: discreet ? "rgba(10,9,14,0.9)" : "#16141f",
+        border: `1px solid ${discreet ? "rgba(120,115,135,0.1)" : `${accentColor}45`}`,
+        boxShadow: discreet ? "none" : `0 0 20px ${accentColor}0a`,
       }}
     >
       {/* En-tête */}
@@ -300,10 +308,14 @@ export function PlayerActionCard({
         disabled={!canConfirm()}
         className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
-          background: canConfirm() ? `${accentColor}cc` : `${accentColor}30`,
-          color: "#fff",
+          background: discreet
+            ? (canConfirm() ? "rgba(25,22,38,0.95)" : "rgba(12,10,18,0.7)")
+            : (canConfirm() ? `${accentColor}cc` : `${accentColor}30`),
+          color: discreet ? (canConfirm() ? "rgba(200,192,176,0.55)" : "rgba(150,145,160,0.3)") : "#fff",
+          border: discreet ? `1px solid ${canConfirm() ? "rgba(150,145,160,0.18)" : "rgba(120,115,135,0.08)"}` : "none",
           fontFamily: "Cinzel, serif",
           letterSpacing: "0.05em",
+          fontSize: discreet ? "11px" : undefined,
         }}
       >
         {loading ? "Envoi..." : (

@@ -568,9 +568,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const current = gameRef.current;
     if (!current) return;
 
+    const action = current.pendingPlayerActions?.find((a) => a.id === actionId);
+
     // Voyante : enrichir le résultat avec le nom et le rôle de la cible
     let enrichedPayload = payload;
-    const action = current.pendingPlayerActions?.find((a) => a.id === actionId);
     if (action?.type === "seer_choose_target" && typeof payload.targetId === "string") {
       const target = current.players.find((p) => p.id === payload.targetId);
       if (target) {
@@ -589,7 +590,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const newState = resolvePlayerAction(current, actionId, enrichedPayload);
+    // 1. Marquer l'action comme résolue (status → "resolved", result = payload)
+    let newState = resolvePlayerAction(current, actionId, enrichedPayload);
+
+    // 2. Appliquer les effets secondaires sur le game state selon le type d'action.
+    //    Sans ça, resolveNight lit nightActions encore vide → les décisions joueur sont perdues.
+    if (action?.type === "witch_choose_potions") {
+      if (payload.save === true) {
+        newState = witchSave(newState);
+      }
+      if (payload.killTargetId && typeof payload.killTargetId === "string") {
+        newState = witchKill(newState, payload.killTargetId);
+      }
+    } else if (action?.type === "cupid_choose_lovers") {
+      if (typeof payload.lover1Id === "string" && typeof payload.lover2Id === "string") {
+        newState = cupidLink(newState, payload.lover1Id, payload.lover2Id);
+      }
+    }
+
     gameRef.current = newState;
     dispatch({ type: "SET_GAME", game: newState });
     await updateSessionState(gameIdRef.current, newState);

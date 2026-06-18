@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Plus, QrCode, Crown, History, Trash2, Wifi, WifiOff, Eye } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { ArrowLeft, Plus, Crown, History, Trash2, Wifi, WifiOff, Eye } from "lucide-react";
 import { LycanLogo } from "./components/brand/LycanLogo";
 import { GameProvider, useGame, type GamePhase, type PlayerStatus, type GameMode, type RoleConfig, type AppView, type GameState } from "./context/GameContext";
 import { NightWizard } from "./components/game/NightWizard";
@@ -7,20 +7,29 @@ import { RulesScreen } from "./components/game/RulesScreen";
 import { HunterModal } from "./components/game/HunterModal";
 import { PhaseTimer } from "./components/game/PhaseTimer";
 import { PlayerActionCard } from "./components/game/PlayerActionCard";
+import { InviteQRCode } from "./components/game/InviteQRCode";
 import { ROLES, ROLES_MAP } from "../lib/roles";
 import { buildPlayerView } from "../lib/gameLogic";
 
-const PHASES: Record<string, { label: string; icon: string; gradient: string; actions: string[] }> = {
+const PHASES: Record<string, {
+  label: string; icon: string; iconImg?: string;
+  tint: string; headerBg: string; cardBorder: string; accentColor: string;
+  actions: string[];
+}> = {
   waiting: {
-    label: "En attente",
-    icon: "⏳",
-    gradient: "linear-gradient(160deg, rgba(13,10,42,0.88) 0%, rgba(26,16,53,0.78) 100%)",
+    label: "En attente", icon: "⏳",
+    tint: "rgba(11,10,15,0.18)",
+    headerBg: "rgba(11,10,15,0.55)",
+    cardBorder: "rgba(201,160,48,0.14)",
+    accentColor: "rgba(201,160,48,0.85)",
     actions: ["Ajoutez les joueurs", "Sélectionnez les rôles", "Lancez la partie quand tout est prêt"],
   },
   night: {
-    label: "Nuit",
-    icon: "🌙",
-    gradient: "linear-gradient(160deg, rgba(13,10,42,0.88) 0%, rgba(26,16,53,0.78) 100%)",
+    label: "Nuit", icon: "🌙", iconImg: "/lycan/ui/icon-phase-night.png",
+    tint: "rgba(13,10,42,0.42)",
+    headerBg: "rgba(13,10,42,0.62)",
+    cardBorder: "rgba(99,102,241,0.22)",
+    accentColor: "rgba(165,180,252,0.9)",
     actions: [
       "Réveillez la Voyante — elle désigne un joueur",
       "Réveillez les Loups — ils choisissent une victime",
@@ -28,9 +37,11 @@ const PHASES: Record<string, { label: string; icon: string; gradient: string; ac
     ],
   },
   day: {
-    label: "Jour",
-    icon: "☀️",
-    gradient: "linear-gradient(160deg, rgba(26,13,5,0.88) 0%, rgba(42,21,5,0.78) 100%)",
+    label: "Jour", icon: "☀️", iconImg: "/lycan/ui/icon-phase-day.png",
+    tint: "rgba(42,21,5,0.28)",
+    headerBg: "rgba(42,21,5,0.55)",
+    cardBorder: "rgba(217,119,6,0.22)",
+    accentColor: "rgba(251,191,36,0.9)",
     actions: [
       "Annoncez les événements de la nuit",
       "Les joueurs débattent librement",
@@ -38,9 +49,11 @@ const PHASES: Record<string, { label: string; icon: string; gradient: string; ac
     ],
   },
   vote: {
-    label: "Vote",
-    icon: "🗳️",
-    gradient: "linear-gradient(160deg, rgba(26,8,16,0.88) 0%, rgba(42,15,26,0.78) 100%)",
+    label: "Vote", icon: "🗳️", iconImg: "/lycan/ui/icon-phase-vote.png",
+    tint: "rgba(42,8,16,0.38)",
+    headerBg: "rgba(42,8,16,0.62)",
+    cardBorder: "rgba(139,28,28,0.28)",
+    accentColor: "rgba(248,113,113,0.9)",
     actions: [
       "Chaque joueur vote pour un suspect",
       "Le Capitaine peut modifier son vote en dernier",
@@ -48,15 +61,31 @@ const PHASES: Record<string, { label: string; icon: string; gradient: string; ac
     ],
   },
   end: {
-    label: "Fin de partie",
-    icon: "🏆",
-    gradient: "linear-gradient(160deg, rgba(10,26,10,0.88) 0%, rgba(15,42,15,0.78) 100%)",
+    label: "Fin de partie", icon: "🏆", iconImg: "/lycan/ui/icon-phase-end.png",
+    tint: "rgba(5,25,15,0.3)",
+    headerBg: "rgba(5,25,15,0.55)",
+    cardBorder: "rgba(16,185,129,0.2)",
+    accentColor: "rgba(52,211,153,0.9)",
     actions: ["Révélez tous les rôles", "Annoncez l'équipe victorieuse", "Consultez l'historique"],
   },
 };
 
-// ── Composants partagés ────────────────────────────────────────────────────────
+// ── Assets rôles ──────────────────────────────────────────────────────────────
 
+const ROLE_IMAGES: Record<string, string> = {
+  werewolf:   "/lycan/roles/loup-garou.png",
+  bigbadwolf: "/lycan/roles/loup-garou.png",
+  seer:       "/lycan/roles/voyante.png",
+  witch:      "/lycan/roles/sorciere.png",
+  hunter:     "/lycan/roles/chasseur.png",
+  cupid:      "/lycan/roles/cupidon.png",
+  villager:   "/lycan/roles/villageois.png",
+  littlegirl: "/lycan/roles/villageois.png",
+  elder:      "/lycan/roles/villageois.png",
+  captain:    "/lycan/roles/villageois.png",
+};
+
+// ── Composants partagés ────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: PlayerStatus }) {
   const map: Record<PlayerStatus, { label: string; cls: string }> = {
@@ -88,6 +117,43 @@ function Avatar({ name, status, isCapitaine }: { name: string; status: PlayerSta
       )}
     </div>
   );
+}
+
+function RoleThumb({ name, status, isCapitaine, role, size = 40 }: {
+  name: string; status: PlayerStatus; isCapitaine: boolean; role?: string | null; size?: number;
+}) {
+  const img = role ? (ROLE_IMAGES[role] ?? null) : null;
+  if (!img) return <Avatar name={name} status={status} isCapitaine={isCapitaine} />;
+
+  const dead = status === "dead";
+  const radius = size >= 38 ? "rounded-xl" : "rounded-lg";
+  return (
+    <div
+      className={`relative flex-shrink-0 overflow-hidden ${radius}`}
+      style={{
+        width: size, height: size,
+        border: `1px solid ${dead ? "rgba(255,80,80,0.2)" : "rgba(201,160,48,0.35)"}`,
+        filter: dead ? "grayscale(70%) brightness(0.55)" : undefined,
+      }}
+    >
+      <img
+        src={img}
+        alt=""
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+      />
+      {isCapitaine && (
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#c9a030] rounded-full flex items-center justify-center z-10">
+          <Crown size={8} className="text-[#0b0a0f]" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getPublicAppUrl(): string {
+  const envUrl = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined;
+  if (envUrl) return envUrl.replace(/\/$/, "");
+  return window.location.origin;
 }
 
 function BackButton({ onClick }: { onClick: () => void }) {
@@ -406,11 +472,13 @@ function CreateScreen() {
 function PlayersScreen() {
   const { navigate, state, gmAddPlayer, gmRemovePlayer, gmAddTestPlayers, setError } = useGame();
   const [newName, setNewName] = useState("");
-  const [linkCopied, setLinkCopied] = useState(false);
   const [addingTest, setAddingTest] = useState(false);
+  const [showStaticQR, setShowStaticQR] = useState(false);
 
   const players = state.game?.players ?? [];
   const gameId = state.game?.id;
+  const sessionUrl = gameId ? `${getPublicAppUrl()}/?join=${gameId}` : "";
+  const staticUrl = `${getPublicAppUrl()}/?join`;
 
   const addPlayer = async () => {
     if (!newName.trim()) return;
@@ -419,18 +487,6 @@ function PlayersScreen() {
       setNewName("");
     } catch (e: unknown) {
       setError((e as Error).message);
-    }
-  };
-
-  const copyLink = async () => {
-    if (!gameId) return;
-    const url = `${window.location.origin}/join/${gameId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      setLinkCopied(false);
     }
   };
 
@@ -527,12 +583,43 @@ function PlayersScreen() {
           </button>
         </div>
 
-        {/* Lien d'invitation */}
-        <button onClick={copyLink} className="w-full mb-3 py-3 rounded-xl flex items-center justify-center gap-2 border border-dashed transition-all active:scale-95"
-          style={{ borderColor: linkCopied ? "rgba(74,222,128,0.4)" : "var(--gold-dim)", color: linkCopied ? "#4ade80" : "var(--gold)" }}>
-          <QrCode size={16} />
-          <span className="text-xs font-mono tracking-wide">{linkCopied ? "✓ Lien copié !" : "Copier le lien d'invitation"}</span>
-        </button>
+        {/* QR code dynamique de partie */}
+        {gameId && (
+          <div className="mb-3">
+            <InviteQRCode mode="session" sessionCode={gameId} inviteUrl={sessionUrl} />
+          </div>
+        )}
+
+        {/* Section QR permanent */}
+        <div className="mb-4">
+          {!showStaticQR ? (
+            <button
+              onClick={() => setShowStaticQR(true)}
+              className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              style={{
+                background: "rgba(11,10,15,0.45)",
+                border: "1px dashed rgba(201,160,48,0.12)",
+                color: "rgba(200,192,176,0.35)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                letterSpacing: "0.1em",
+              }}
+            >
+              🖨 Afficher le QR permanent à imprimer
+            </button>
+          ) : (
+            <div>
+              <InviteQRCode mode="static" inviteUrl={staticUrl} />
+              <button
+                onClick={() => setShowStaticQR(false)}
+                className="mt-2 w-full text-center text-[9px] font-mono"
+                style={{ color: "rgba(200,192,176,0.22)", letterSpacing: "0.08em" }}
+              >
+                Masquer
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Joueurs de test */}
         {(
@@ -747,7 +834,6 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
 
 function DashboardScreen() {
   const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError } = useGame();
-  const [showNightWizard, setShowNightWizard] = useState(false);
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
@@ -847,7 +933,8 @@ function DashboardScreen() {
             alt=""
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
           />
-          <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.32)" }} />
+          <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.28)" }} />
+          <div className="absolute inset-0" style={{ background: phaseInfo.tint }} />
         </div>
       )}
 
@@ -877,45 +964,34 @@ function DashboardScreen() {
         )}
 
         {/* En-tête de phase */}
-        <div className="px-5 pt-5 pb-4">
+        <div className="px-5 pt-5 pb-4 rounded-b-2xl" style={{ background: phaseInfo.headerBg, backdropFilter: "blur(8px)" }}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
-                {phaseInfo.icon} {phaseInfo.label}
+                {phaseInfo.iconImg
+                  ? <img src={phaseInfo.iconImg} alt="" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0 }} />
+                  : <span>{phaseInfo.icon}</span>}
+                {phaseInfo.label}
                 {phase !== "end" && phase !== "waiting" && (
-                  <span className="text-sm font-mono" style={{ color: "var(--gold)" }}>#{game.phaseNumber}</span>
+                  <span className="text-sm font-mono" style={{ color: phaseInfo.accentColor }}>#{game.phaseNumber}</span>
                 )}
               </h2>
               <p className="text-[9px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>Code · {game.id}</p>
             </div>
             <button onClick={() => navigate("history")} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-all active:scale-90"
-              style={{ border: "1px solid var(--gold-subtle)", color: "var(--text-muted)" }}>
+              style={{ border: `1px solid ${phaseInfo.cardBorder}`, color: "var(--text-muted)" }}>
               <History size={11} />
               <span className="text-[10px] font-mono">Journal</span>
             </button>
           </div>
 
-          {phase === "night" ? (
-            <button
-              onClick={() => setShowNightWizard(!showNightWizard)}
-              className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
-              style={{
-                fontFamily: "var(--font-title)",
-                background: showNightWizard ? "rgba(139,28,28,0.3)" : "rgba(11,10,15,0.55)",
-                border: `1px solid ${showNightWizard ? "rgba(139,28,28,0.5)" : "rgba(201,160,48,0.25)"}`,
-                color: showNightWizard ? "var(--text-primary)" : "var(--gold)",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {showNightWizard ? "▲ Fermer le guide nocturne" : "🌙 Ouvrir le guide nocturne"}
-            </button>
-          ) : (
-            <div className="rounded-xl p-3.5" style={{ background: "rgba(11,10,15,0.55)", border: "1px solid rgba(201,160,48,0.12)" }}>
-              <p className="text-[9px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--text-muted)" }}>À faire maintenant</p>
+          {phase !== "night" && (
+            <div className="rounded-xl p-3.5" style={{ background: "rgba(11,10,15,0.4)", border: `1px solid ${phaseInfo.cardBorder}` }}>
+              <p className="text-[9px] font-mono uppercase tracking-widest mb-2.5" style={{ color: phaseInfo.accentColor, opacity: 0.75 }}>À faire maintenant</p>
               <div className="flex flex-col gap-1.5">
                 {phaseInfo.actions.map((action, i) => (
                   <div key={i} className="flex items-start gap-2.5">
-                    <span className="text-[9px] font-mono w-3 flex-shrink-0 mt-0.5" style={{ color: "var(--gold)" }}>{i + 1}.</span>
+                    <span className="text-[9px] font-mono w-3 flex-shrink-0 mt-0.5" style={{ color: phaseInfo.accentColor }}>{i + 1}.</span>
                     <p className="text-xs leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{action}</p>
                   </div>
                 ))}
@@ -926,18 +1002,18 @@ function DashboardScreen() {
 
         {state.error && <ErrorBanner message={state.error} onDismiss={() => setError(null)} />}
 
-        {/* Night Wizard */}
-        {phase === "night" && showNightWizard && (
-          <div className="px-5 pt-4">
-            <NightWizard onResolve={() => { setShowNightWizard(false); }} />
+        {/* ── Phase nuit : NightWizard plein écran ── */}
+        {phase === "night" ? (
+          <div className="px-5 pt-5 pb-6">
+            <NightWizard onResolve={() => {}} phaseNumber={game.phaseNumber} />
           </div>
-        )}
+        ) : (
+          <>
+            {/* Timer de phase */}
+            {(phase === "day" || phase === "vote") && <PhaseTimer game={game} />}
 
-        {/* Timer de phase */}
-        {(phase === "day" || phase === "vote") && <PhaseTimer game={game} />}
-
-        {/* Liste des joueurs */}
-        <div className="px-5 py-4">
+            {/* Liste des joueurs */}
+            <div className="px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>Joueurs ({alivePlayers.length} vivants)</p>
             <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>MJ seulement</span>
@@ -953,10 +1029,10 @@ function DashboardScreen() {
                   className="flex items-center gap-3 p-3 rounded-xl transition-all"
                   style={{
                     background: isDead ? "rgba(11,10,15,0.45)" : "rgba(11,10,15,0.65)",
-                    border: `1px solid ${isDead ? "rgba(255,80,80,0.1)" : isLover ? "rgba(236,72,153,0.3)" : "rgba(201,160,48,0.14)"}`,
+                    border: `1px solid ${isDead ? "rgba(255,80,80,0.1)" : isLover ? "rgba(236,72,153,0.3)" : phaseInfo.cardBorder}`,
                     opacity: isDead ? 0.55 : 1,
                   }}>
-                  <Avatar name={p.name} status={p.status} isCapitaine={p.isCapitaine} />
+                  <RoleThumb name={p.name} status={p.status} isCapitaine={p.isCapitaine} role={p.role} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -1063,6 +1139,8 @@ function DashboardScreen() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1074,6 +1152,10 @@ function PlayerViewScreen() {
   const { navigate, state, playerVote } = useGame();
   const pv = state.playerView;
   const [myVote, setMyVote] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(false);
+  const [screenHidden, setScreenHidden] = useState(false);
+  const [cardHidden, setCardHidden] = useState(false);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (!pv) {
     return (
@@ -1098,6 +1180,124 @@ function PlayerViewScreen() {
   const { player, instruction, phase, phaseNumber, gameName, currentVotes, winner } = pv;
   const phaseLabel = phase === "night" ? `🌙 Nuit ${phaseNumber}` : phase === "day" ? `☀️ Jour ${phaseNumber}` : phase === "vote" ? `🗳️ Vote` : phase === "end" ? "🏆 Fin de partie" : "⏳ En attente";
 
+  const isDiscreetMode = phase === "night" && player.status !== "dead";
+  const roleInfo = player.role ? ROLES_MAP[player.role] : null;
+
+  // ── Écran noir complet (masquer) ──
+  if (screenHidden) {
+    return (
+      <div
+        className="relative min-h-full flex flex-col items-center justify-center gap-2"
+        style={{ background: "#000000", touchAction: "none" }}
+        onPointerDown={() => { longPressRef.current = setTimeout(() => setScreenHidden(false), 700); }}
+        onPointerUp={() => { if (longPressRef.current) clearTimeout(longPressRef.current); }}
+        onPointerCancel={() => { if (longPressRef.current) clearTimeout(longPressRef.current); }}
+      >
+        <p style={{ color: "rgba(70,65,80,0.5)", fontSize: "10px", fontFamily: "var(--font-mono)", letterSpacing: "0.15em" }}>ÉCRAN MASQUÉ</p>
+        <p style={{ color: "rgba(70,65,80,0.28)", fontSize: "9px", fontFamily: "var(--font-mono)" }}>Appuie longuement pour revenir</p>
+      </div>
+    );
+  }
+
+  // ── Mode discrétion nuit ──
+  if (isDiscreetMode) {
+    return (
+      <div className="relative min-h-full flex flex-col pb-6" style={{ background: "#050408" }}>
+        {/* Header ultra-discret */}
+        <div className="flex items-center justify-between px-5 pt-6 pb-4">
+          <div style={{ width: 32 }} />
+          <div className="text-center">
+            <p style={{ color: "rgba(120,115,135,0.3)", fontSize: "9px", fontFamily: "var(--font-mono)", letterSpacing: "0.2em" }}>{gameName}</p>
+            <p style={{ color: "rgba(120,115,135,0.22)", fontSize: "8px", fontFamily: "var(--font-mono)", marginTop: 2 }}>NUIT {phaseNumber}</p>
+          </div>
+          <button
+            onClick={() => setScreenHidden(true)}
+            style={{ color: "rgba(120,115,135,0.28)", fontSize: "9px", fontFamily: "var(--font-mono)", padding: "4px 8px", border: "1px solid rgba(120,115,135,0.1)", borderRadius: 8 }}
+          >
+            masquer
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col px-5 gap-5">
+          {/* Nom du joueur très atténué */}
+          <p className="text-center" style={{ color: "rgba(200,192,176,0.2)", fontSize: "14px", fontFamily: "var(--font-title)", letterSpacing: "0.06em" }}>
+            {player.name}{player.isCapitaine ? " ⚔" : ""}
+          </p>
+
+          {/* Rôle — maintenir pour révéler */}
+          <div
+            className="rounded-2xl flex flex-col items-center justify-center gap-3 select-none"
+            onPointerDown={() => setReveal(true)}
+            onPointerUp={() => setReveal(false)}
+            onPointerCancel={() => setReveal(false)}
+            onPointerLeave={() => setReveal(false)}
+            style={{ background: "rgba(12,10,18,0.95)", border: "1px solid rgba(201,160,48,0.05)", padding: "28px 16px", userSelect: "none", touchAction: "none", minHeight: 130 }}
+          >
+            {reveal && roleInfo ? (
+              <>
+                <span style={{ fontSize: "30px" }}>{roleInfo.emoji}</span>
+                <p style={{ color: "rgba(201,160,48,0.65)", fontSize: "15px", fontFamily: "var(--font-display)", textAlign: "center" }}>{roleInfo.name}</p>
+                <p style={{ color: "rgba(200,192,176,0.35)", fontSize: "10px", fontFamily: "var(--font-body)", fontStyle: "italic", textAlign: "center", lineHeight: 1.4 }}>{roleInfo.description}</p>
+              </>
+            ) : (
+              <>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,160,48,0.04)", border: "1px solid rgba(201,160,48,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: "16px", opacity: 0.25 }}>?</span>
+                </div>
+                <p style={{ color: "rgba(200,192,176,0.18)", fontSize: "10px", fontFamily: "var(--font-title)", letterSpacing: "0.12em" }}>RÔLE MASQUÉ</p>
+                <p style={{ color: "rgba(150,145,160,0.12)", fontSize: "8px", fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>Maintiens appuyé pour révéler</p>
+              </>
+            )}
+          </div>
+
+          {/* Résultat Voyante (nuit discrète) */}
+          {pv.resolvedActions && pv.resolvedActions.length > 0 && (() => {
+            const last = pv.resolvedActions[pv.resolvedActions.length - 1];
+            if (last.type === "seer_choose_target" && last.result) {
+              const r = last.result as { targetName: string; roleData: { name: string; emoji: string; category: string } | null };
+              const isWolf = r.roleData?.category === "wolves";
+              return (
+                <div className="rounded-xl p-3" style={{ background: isWolf ? "rgba(139,28,28,0.1)" : "rgba(201,160,48,0.04)", border: `1px solid ${isWolf ? "rgba(139,28,28,0.2)" : "rgba(201,160,48,0.08)"}` }}>
+                  <p style={{ color: isWolf ? "rgba(248,113,113,0.5)" : "rgba(201,160,48,0.35)", fontSize: "9px", fontFamily: "var(--font-mono)", letterSpacing: "0.15em", marginBottom: 4 }}>🔮 résultat de ta vision</p>
+                  <p style={{ color: isWolf ? "rgba(248,113,113,0.6)" : "rgba(201,160,48,0.55)", fontSize: "13px", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
+                    {r.targetName} est <strong>{r.roleData?.name ?? "inconnu"}</strong>{isWolf && " 🐺"}
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Actions nocturnes ou attente */}
+          {pv.pendingActions && pv.pendingActions.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <p style={{ color: "rgba(150,145,160,0.25)", fontSize: "9px", fontFamily: "var(--font-mono)", textAlign: "center", letterSpacing: "0.2em" }}>ACTION REQUISE</p>
+              {pv.pendingActions.map((action) => (
+                <PlayerActionCard key={action.id} action={action} playerView={pv} discreet />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 mt-2">
+              <div style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(120,115,135,0.18)" }} />
+              <p style={{ color: "rgba(150,145,160,0.18)", fontSize: "11px", fontFamily: "var(--font-mono)", letterSpacing: "0.1em", textAlign: "center" }}>Garde les yeux fermés</p>
+              <p style={{ color: "rgba(150,145,160,0.1)", fontSize: "9px", fontFamily: "var(--font-mono)", textAlign: "center" }}>Attends le signal du Maître du Jeu</p>
+            </div>
+          )}
+        </div>
+
+        {/* Bouton masquer bas de page */}
+        <div className="px-5 pt-4">
+          <button
+            onClick={() => setScreenHidden(true)}
+            style={{ width: "100%", padding: "12px", borderRadius: 12, background: "rgba(12,10,18,0.7)", border: "1px solid rgba(120,115,135,0.07)", color: "rgba(120,115,135,0.2)", fontSize: "9px", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}
+          >
+            Masquer l'écran
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleVote = async (targetId: string) => {
     if (phase !== "vote") return;
     setMyVote(targetId);
@@ -1115,18 +1315,6 @@ function PlayerViewScreen() {
   };
   const bgImage = phaseImages[phase as string] ?? "/lycan/village-night.png";
 
-  const ROLE_IMAGES: Record<string, string> = {
-    werewolf:   "/lycan/roles/loup-garou.png",
-    bigbadwolf: "/lycan/roles/loup-garou.png",
-    seer:       "/lycan/roles/voyante.png",
-    witch:      "/lycan/roles/sorciere.png",
-    hunter:     "/lycan/roles/chasseur.png",
-    cupid:      "/lycan/roles/cupidon.png",
-    villager:   "/lycan/roles/villageois.png",
-    littlegirl: "/lycan/roles/villageois.png",
-    elder:      "/lycan/roles/villageois.png",
-    captain:    "/lycan/roles/villageois.png",
-  };
   const roleImg = player.role ? (ROLE_IMAGES[player.role as string] ?? null) : null;
 
   return (
@@ -1135,7 +1323,8 @@ function PlayerViewScreen() {
       {/* ── Background image (phase-specific) ── */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <img src={bgImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
-        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.38)" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.32)" }} />
+        <div className="absolute inset-0" style={{ background: PHASES[phase as string]?.tint ?? "rgba(11,10,15,0.1)" }} />
       </div>
 
       <div className="relative z-10 flex flex-col flex-1">
@@ -1144,9 +1333,16 @@ function PlayerViewScreen() {
           <BackButton onClick={() => navigate("home")} />
           <div className="text-center">
             <p className="text-[9px] font-mono uppercase tracking-[0.3em]" style={{ color: "var(--text-muted)" }}>{gameName}</p>
-            <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--gold)" }}>{phaseLabel}</p>
+            <p className="text-[10px] font-mono mt-0.5" style={{ color: PHASES[phase as string]?.accentColor ?? "var(--gold)" }}>{phaseLabel}</p>
           </div>
-          <div className="w-8" />
+          <button
+            onClick={() => navigate("rules")}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
+            style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}
+            title="Règles & rôles"
+          >
+            <span style={{ fontSize: "13px" }}>?</span>
+          </button>
         </div>
 
         {/* Nom du joueur */}
@@ -1157,12 +1353,36 @@ function PlayerViewScreen() {
         </div>
 
         {/* Carte rôle / mort / attente */}
+        {player.status !== "dead" && player.role && phase !== "end" && (
+          <div className="mx-5 mb-2 flex justify-end">
+            <button
+              onClick={() => setCardHidden((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all active:scale-90"
+              style={{ border: "1px solid rgba(201,160,48,0.12)", color: "rgba(200,192,176,0.35)", fontSize: "9px", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}
+            >
+              <Eye size={10} />
+              {cardHidden ? "afficher" : "masquer"}
+            </button>
+          </div>
+        )}
         {player.status === "dead" ? (
           <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "rgba(11,10,15,0.72)", border: "1px solid rgba(255,0,0,0.22)" }}>
             <div className="text-6xl">💀</div>
             <p className="text-xl font-bold text-red-400" style={{ fontFamily: "var(--font-title)" }}>Tu es mort(e)</p>
             <p className="text-sm text-center" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Reste silencieux·se. Ne révèle pas ton rôle.</p>
           </div>
+        ) : player.role && cardHidden ? (
+          <button
+            className="mx-5 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-[0.99] transition-all"
+            onClick={() => setCardHidden(false)}
+            style={{ border: "1px solid rgba(201,160,48,0.08)", background: "rgba(11,10,15,0.72)", padding: "36px 16px", width: "calc(100% - 40px)" }}
+          >
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,160,48,0.04)", border: "1px solid rgba(201,160,48,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Eye size={14} style={{ color: "rgba(201,160,48,0.2)" }} />
+            </div>
+            <p style={{ color: "rgba(200,192,176,0.2)", fontSize: "10px", fontFamily: "var(--font-mono)", letterSpacing: "0.12em" }}>CARTE MASQUÉE</p>
+            <p style={{ color: "rgba(150,145,160,0.12)", fontSize: "8px", fontFamily: "var(--font-mono)" }}>Appuie pour voir ton rôle</p>
+          </button>
         ) : player.role ? (
           <div className="mx-5 rounded-2xl overflow-hidden relative"
             style={{ border: "1px solid var(--gold-dim)", boxShadow: "0 0 40px rgba(139,28,28,0.2), 0 0 0 1px var(--gold-subtle)" }}>
@@ -1404,7 +1624,7 @@ function VoteScreen() {
                 style={{ border: `1px solid ${isLeader ? "rgba(139,28,28,0.55)" : "var(--gold-subtle)"}` }}>
                 <div className="flex items-center gap-3 p-3"
                   style={{ background: isLeader ? "rgba(139,28,28,0.25)" : "rgba(11,10,15,0.6)" }}>
-                  <Avatar name={p.name} status={p.status} isCapitaine={p.isCapitaine} />
+                  <RoleThumb name={p.name} status={p.status} isCapitaine={p.isCapitaine} role={p.role} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       <p className="text-sm font-medium truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
@@ -1446,10 +1666,25 @@ function JoinScreen() {
   const [loading, setLoading] = useState(false);
   const [savedSession, setSavedSession] = useState<{ gameId: string } | null>(null);
   const [tokenResetMsg, setTokenResetMsg] = useState<string | null>(null);
+  const [codeFromQR, setCodeFromQR] = useState<string | null>(null);
 
   useEffect(() => {
+    // Route path : /join/CODE (legacy)
     const match = window.location.pathname.match(/\/join\/([A-Z0-9]+)/i);
-    if (match) setGameId(match[1].toUpperCase());
+    if (match) {
+      setGameId(match[1].toUpperCase());
+      setCodeFromQR(match[1].toUpperCase());
+    } else {
+      // Query params : ?join=CODE ou ?code=CODE (QR code) ou ?join sans valeur (QR permanent)
+      const params = new URLSearchParams(window.location.search);
+      const joinVal = params.get("join"); // "" si ?join sans valeur, valeur sinon, null si absent
+      const codeVal = params.get("code");
+      const rawCode = (joinVal && joinVal !== "true") ? joinVal : (codeVal ?? null);
+      if (rawCode) {
+        setGameId(rawCode.toUpperCase());
+        setCodeFromQR(rawCode.toUpperCase());
+      }
+    }
     // Vérifier si une session existante est sauvegardée
     try {
       const raw = localStorage.getItem("lycan_session");
@@ -1513,7 +1748,20 @@ function JoinScreen() {
         <div className="flex-1 flex flex-col justify-center gap-5">
           <div className="flex flex-col items-center mb-2 gap-3">
             <LycanLogo size={72} />
-            <p className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Entrez le code de partie</p>
+            {codeFromQR ? (
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "rgba(201,160,48,0.5)" }}>
+                  Tu rejoins la partie
+                </p>
+                <p className="text-2xl tracking-[0.2em] font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--gold)" }}>
+                  {codeFromQR}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm font-mono text-center" style={{ color: "var(--text-muted)" }}>
+                Entre le code donné par le Maître du Jeu
+              </p>
+            )}
           </div>
 
           <DarkCard>
@@ -1677,6 +1925,15 @@ const SCREEN_LABELS: Record<AppView, string> = {
 function AppInner() {
   const { state, navigate } = useGame();
   const { view } = state;
+
+  // Auto-navigate to JoinScreen si ?join ou ?code présent dans l'URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if ((params.has("join") || params.has("code")) && view === "home") {
+      navigate("join");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const renderScreen = () => {
     switch (view) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronRight, Smartphone, RotateCcw } from "lucide-react";
+import { Check, Smartphone, RotateCcw } from "lucide-react";
 import { useGame } from "../../context/GameContext";
 import type { GameState, Player, PlayerAction } from "../../context/GameContext";
 import { ROLES } from "../../../lib/roles";
@@ -20,6 +20,31 @@ interface SeerReveal {
   role: string;
   roleData: { name: string; emoji: string; description: string; category: string } | null;
 }
+
+// ── Meta visuelle par étape ────────────────────────────────────────────────────
+
+const STEP_META: Record<StepId, { img: string; title: string; narrative: string }> = {
+  cupid: {
+    img: "/lycan/roles/cupidon.png",
+    title: "Cupidon s'éveille",
+    narrative: "Il tend son arc et unit deux âmes pour l'éternité.",
+  },
+  seer: {
+    img: "/lycan/roles/voyante.png",
+    title: "La Voyante entrouvre les yeux",
+    narrative: "Sa vision perce l'obscurité et révèle les âmes.",
+  },
+  wolves: {
+    img: "/lycan/roles/loup-garou.png",
+    title: "Les Loups se réveillent",
+    narrative: "Ils se reconnaissent et désignent leur proie dans le silence.",
+  },
+  witch: {
+    img: "/lycan/roles/sorciere.png",
+    title: "La Sorcière ouvre les yeux",
+    narrative: "Elle tient entre ses mains le destin des villageois.",
+  },
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +70,28 @@ function buildSteps(game: GameState): Step[] {
   return steps;
 }
 
+// ── Bouton primaire nuit ───────────────────────────────────────────────────────
+
+function NightButton({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
+      style={{
+        background: "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
+        color: "#f0e8d0",
+        fontFamily: "Cinzel, serif",
+        border: "1px solid rgba(201,160,48,0.3)",
+        boxShadow: "0 4px 18px rgba(139,28,28,0.35)",
+        letterSpacing: "0.08em",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ── Badge "En attente joueur" ─────────────────────────────────────────────────
 
 function WaitingForPlayer({
@@ -61,17 +108,17 @@ function WaitingForPlayer({
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="flex items-center gap-3 p-3 rounded-xl"
-        style={{ background: "rgba(201,160,48,0.06)", border: "1px solid rgba(201,160,48,0.2)" }}
+        className="flex items-center gap-3 p-3.5 rounded-xl"
+        style={{ background: "rgba(201,160,48,0.07)", border: "1px solid rgba(201,160,48,0.2)" }}
       >
         <div className="relative flex-shrink-0">
-          <Smartphone size={18} className="text-[#c9a030]" />
+          <Smartphone size={18} style={{ color: "#c9a030" }} />
           {isConnected && (
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           )}
         </div>
         <div className="flex-1">
-          <p className="text-xs text-[#e8ddd0] font-semibold" style={{ fontFamily: "Cinzel, serif" }}>
+          <p className="text-xs font-semibold" style={{ fontFamily: "Cinzel, serif", color: "#e8ddd0" }}>
             En attente de {playerName ?? "…"}
           </p>
           <p className="text-[10px] font-mono mt-0.5" style={{ color: isConnected ? "#34d399" : "#ef4444" }}>
@@ -89,7 +136,7 @@ function WaitingForPlayer({
       <button
         onClick={onOverride}
         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs border transition-all active:scale-95"
-        style={{ borderColor: "rgba(201,160,48,0.25)", color: "#9490a0", fontFamily: "Cinzel, serif" }}
+        style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}
       >
         <RotateCcw size={12} />
         Reprendre en mode MJ
@@ -112,20 +159,20 @@ function DelegateButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 w-full py-2.5 px-3 rounded-xl text-xs border transition-all active:scale-95"
+      className="flex items-center gap-2.5 w-full py-3 px-4 rounded-xl text-xs border transition-all active:scale-95"
       style={{
-        background: isConnected ? "rgba(52,211,153,0.07)" : "rgba(255,255,255,0.03)",
-        borderColor: isConnected ? "rgba(52,211,153,0.35)" : "rgba(255,255,255,0.1)",
+        background: isConnected ? "rgba(52,211,153,0.07)" : "rgba(255,255,255,0.02)",
+        borderColor: isConnected ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.08)",
         color: isConnected ? "#34d399" : "#9490a0",
         fontFamily: "Cinzel, serif",
       }}
     >
-      <Smartphone size={13} className="flex-shrink-0" />
+      <Smartphone size={14} className="flex-shrink-0" />
       <span className="flex-1 text-left">
-        Envoyer à {playerName ?? "…"}{" "}
-        {!isConnected && <span className="text-[9px] opacity-60">(hors ligne)</span>}
+        Envoyer à {playerName ?? "…"}
+        {!isConnected && <span className="text-[9px] opacity-60 ml-1">(hors ligne)</span>}
       </span>
-      <ChevronRight size={12} />
+      <span className="text-[10px] opacity-60">→</span>
     </button>
   );
 }
@@ -149,24 +196,24 @@ function PlayerPicker({
   return (
     <div>
       {label && (
-        <p className="text-[9px] text-[#9490a0] font-mono uppercase tracking-widest mb-2">{label}</p>
+        <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>{label}</p>
       )}
       <div className="flex flex-col gap-1.5">
         {eligible.map((p) => (
           <button
             key={p.id}
             onClick={() => onSelect(p.id)}
-            className="flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all active:scale-98 border"
+            className="flex items-center gap-3 p-2.5 rounded-xl text-left transition-all active:scale-[0.98] border"
             style={{
-              background: selected === p.id ? "rgba(139,28,28,0.2)" : "#0e0d14",
-              borderColor: selected === p.id ? "rgba(139,28,28,0.7)" : "rgba(201,160,48,0.12)",
+              background: selected === p.id ? "rgba(139,28,28,0.18)" : "rgba(11,10,15,0.5)",
+              borderColor: selected === p.id ? "rgba(139,28,28,0.6)" : "rgba(201,160,48,0.1)",
             }}
           >
             <div
               className="w-7 h-7 rounded-full border flex items-center justify-center text-xs font-semibold flex-shrink-0"
               style={{
-                background: selected === p.id ? "rgba(139,28,28,0.3)" : "#1e1b2a",
-                borderColor: selected === p.id ? "rgba(139,28,28,0.6)" : "rgba(201,160,48,0.25)",
+                background: selected === p.id ? "rgba(139,28,28,0.3)" : "rgba(30,27,42,0.8)",
+                borderColor: selected === p.id ? "rgba(139,28,28,0.6)" : "rgba(201,160,48,0.2)",
                 color: selected === p.id ? "#f0e8d0" : "#c9a030",
                 fontFamily: "Cinzel, serif",
               }}
@@ -179,11 +226,11 @@ function PlayerPicker({
             >
               {p.name}
             </span>
-            {selected === p.id && <Check size={14} className="text-red-400 flex-shrink-0" />}
+            {selected === p.id && <Check size={13} style={{ color: "#f87171", flexShrink: 0 }} />}
           </button>
         ))}
         {eligible.length === 0 && (
-          <p className="text-[11px] text-[#9490a0] font-mono py-2 text-center">Aucun joueur disponible</p>
+          <p className="text-[11px] font-mono py-2 text-center" style={{ color: "var(--text-muted)" }}>Aucun joueur disponible</p>
         )}
       </div>
     </div>
@@ -204,7 +251,6 @@ function CupidStep({ game, onDone }: { game: GameState; onDone: () => void }) {
 
   const cupid = game.players.find((p) => p.role === "cupid" && p.status !== "dead");
 
-  // Surveiller la résolution de l'action par le joueur
   useEffect(() => {
     if (mode !== "waiting" || !pendingActionId) return;
     const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
@@ -258,42 +304,27 @@ function CupidStep({ game, onDone }: { game: GameState; onDone: () => void }) {
 
   if (linked || mode === "done") {
     return (
-      <div className="flex flex-col items-center gap-4 py-4">
-        <div className="text-4xl">💘</div>
-        <p className="text-sm text-[#c9a030] font-semibold text-center" style={{ fontFamily: "Cinzel, serif" }}>
-          {linkedNames ? `${linkedNames[0]} et ${linkedNames[1]} sont liés pour l'éternité` : "Amoureux unis"}
-        </p>
-        <button onClick={onDone} className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95"
-          style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}>
-          Suivant →
-        </button>
+      <div className="flex flex-col items-center gap-4 py-2">
+        <div className="p-4 rounded-xl text-center w-full" style={{ background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)" }}>
+          <p className="text-2xl mb-2">💘</p>
+          <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "#f9a8d4" }}>
+            {linkedNames ? `${linkedNames[0]} & ${linkedNames[1]}` : "Amoureux unis"}
+          </p>
+          <p className="text-[10px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>liés pour l'éternité</p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
       </div>
     );
   }
 
   if (mode === "waiting") {
-    return (
-      <WaitingForPlayer
-        playerName={cupid?.name}
-        isConnected={cupid?.isConnected ?? false}
-        action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
-        onOverride={handleOverride}
-      />
-    );
+    return <WaitingForPlayer playerName={cupid?.name} isConnected={cupid?.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)} onOverride={handleOverride} />;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
-        Cupidon ouvre les yeux. Choisissez deux joueurs à unir par l'amour éternel.
-      </p>
-      {cupid && (
-        <DelegateButton
-          playerName={cupid.name}
-          isConnected={cupid.isConnected}
-          onClick={handleDelegate}
-        />
-      )}
+      {cupid && <DelegateButton playerName={cupid.name} isConnected={cupid.isConnected} onClick={handleDelegate} />}
       <PlayerPicker players={game.players} selected={lover1}
         onSelect={(id) => { setLover1(id); if (lover2 === id) setLover2(null); }}
         label="Premier amoureux" />
@@ -301,14 +332,9 @@ function CupidStep({ game, onDone }: { game: GameState; onDone: () => void }) {
         onSelect={(id) => { setLover2(id); if (lover1 === id) setLover1(null); }}
         exclude={lover1 ? [lover1] : []}
         label="Deuxième amoureux" />
-      <button
-        onClick={handleLink}
-        disabled={!lover1 || !lover2 || loading}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95 disabled:opacity-40"
-        style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}
-      >
+      <NightButton onClick={handleLink} disabled={!lover1 || !lover2 || loading}>
         {loading ? "Liaison..." : "💘 Unir ces deux joueurs"}
-      </button>
+      </NightButton>
     </div>
   );
 }
@@ -325,7 +351,6 @@ function SeerStep({ game, onDone }: { game: GameState; onDone: () => void }) {
 
   const seer = game.players.find((p) => p.role === "seer" && p.status !== "dead");
 
-  // Surveiller la résolution de l'action par le joueur
   useEffect(() => {
     if (mode !== "waiting" || !pendingActionId) return;
     const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
@@ -381,67 +406,41 @@ function SeerStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   if (reveal && mode === "done") {
     const isWolf = reveal.roleData?.category === "wolves";
     return (
-      <div className="flex flex-col items-center gap-4 py-2">
-        <div className="text-4xl">{reveal.roleData?.emoji ?? "❓"}</div>
-        <div
-          className="w-full p-4 rounded-xl text-center"
-          style={{
-            background: isWolf ? "rgba(139,28,28,0.2)" : "rgba(201,160,48,0.08)",
-            border: `1px solid ${isWolf ? "rgba(139,28,28,0.5)" : "rgba(201,160,48,0.25)"}`,
-          }}
-        >
-          <p className="text-[9px] text-[#9490a0] font-mono uppercase tracking-widest mb-1">{reveal.name} est…</p>
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: isWolf ? "rgba(139,28,28,0.18)" : "rgba(201,160,48,0.08)",
+          border: `1px solid ${isWolf ? "rgba(139,28,28,0.45)" : "rgba(201,160,48,0.25)"}`,
+        }}>
+          <p className="text-3xl mb-2">{reveal.roleData?.emoji ?? "❓"}</p>
+          <p className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>{reveal.name} est…</p>
           <p className="text-xl font-bold" style={{ fontFamily: "Cinzel Decorative, Cinzel, serif", color: isWolf ? "#f87171" : "#c9a030" }}>
             {reveal.roleData?.name ?? reveal.role}
           </p>
-          {isWolf && <p className="text-xs text-red-400 font-mono mt-1 animate-pulse">🐺 LOUP-GAROU</p>}
+          {isWolf && <p className="text-[10px] text-red-400 font-mono mt-1 animate-pulse">🐺 LOUP-GAROU</p>}
         </div>
-        <button onClick={onDone} className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95"
-          style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}>
-          Suivant →
-        </button>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
       </div>
     );
   }
 
   if (mode === "waiting") {
-    return (
-      <WaitingForPlayer
-        playerName={seer?.name}
-        isConnected={seer?.isConnected ?? false}
-        action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
-        onOverride={handleOverride}
-      />
-    );
+    return <WaitingForPlayer playerName={seer?.name} isConnected={seer?.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)} onOverride={handleOverride} />;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
-        La Voyante ({seer?.name}) ouvre les yeux. Choisissez un joueur pour révéler son rôle.
-      </p>
-      {seer && (
-        <DelegateButton
-          playerName={seer.name}
-          isConnected={seer.isConnected}
-          onClick={handleDelegate}
-        />
-      )}
+      {seer && <DelegateButton playerName={seer.name} isConnected={seer.isConnected} onClick={handleDelegate} />}
       <PlayerPicker players={game.players} selected={target} onSelect={setTarget}
         exclude={seer ? [seer.id] : []} label="Joueur à consulter" />
-      <button
-        onClick={handleCheck}
-        disabled={!target || loading}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95 disabled:opacity-40"
-        style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}
-      >
+      <NightButton onClick={handleCheck} disabled={!target || loading}>
         {loading ? "Révélation..." : "🔮 Révéler le rôle"}
-      </button>
+      </NightButton>
     </div>
   );
 }
 
-// ── Étape Loups (MJ uniquement) ───────────────────────────────────────────────
+// ── Étape Loups ───────────────────────────────────────────────────────────────
 
 function WolvesStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   const { gmWolvesTarget, gmWolvesNoKill } = useGame();
@@ -464,40 +463,44 @@ function WolvesStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   if (decided) {
     const victim = target ? game.players.find((p) => p.id === target) : null;
     return (
-      <div className="flex flex-col items-center gap-4 py-4">
-        <div className="text-4xl">{victim ? "🎯" : "🌙"}</div>
-        <p className="text-sm text-[#c8c0b0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-          {victim ? `Les Loups ciblent ${victim.name}` : "Les Loups ne tuent personne cette nuit"}
-        </p>
-        <button onClick={onDone} className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95"
-          style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}>
-          Suivant →
-        </button>
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: victim ? "rgba(139,28,28,0.18)" : "rgba(99,102,241,0.1)",
+          border: `1px solid ${victim ? "rgba(139,28,28,0.4)" : "rgba(99,102,241,0.25)"}`,
+        }}>
+          <p className="text-3xl mb-2">{victim ? "🎯" : "🌙"}</p>
+          <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+            {victim ? <><span style={{ color: "#f87171", fontWeight: 600 }}>{victim.name}</span> est ciblé(e)</> : "Les Loups ne tuent personne cette nuit"}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
-        Les Loups ouvrent les yeux et désignent leur victime en silence.
-      </p>
       <PlayerPicker players={game.players} selected={target} onSelect={setTarget}
         exclude={[...wolfIds]} label="Victime désignée" />
       <div className="flex gap-2">
         <button
           onClick={() => handleDecide(true)}
           disabled={!target || loading}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95 disabled:opacity-40"
-          style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}
+          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-40"
+          style={{
+            background: "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
+            color: "#f0e8d0",
+            fontFamily: "Cinzel, serif",
+            border: "1px solid rgba(201,160,48,0.3)",
+          }}
         >
-          {loading ? "..." : "🎯 Confirmer la cible"}
+          {loading ? "..." : "🎯 Confirmer"}
         </button>
         <button
           onClick={() => handleDecide(false)}
           disabled={loading}
           className="px-4 py-3 rounded-xl text-sm border transition-all active:scale-95"
-          style={{ borderColor: "rgba(201,160,48,0.3)", color: "#9490a0", fontFamily: "Cinzel, serif" }}
+          style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}
         >
           Aucun
         </button>
@@ -522,7 +525,6 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   const victim = victimId ? game.players.find((p) => p.id === victimId) : null;
   const witch = game.players.find((p) => p.role === "witch" && p.status !== "dead");
 
-  // Surveiller la résolution de l'action par la Sorcière
   useEffect(() => {
     if (mode !== "waiting" || !pendingActionId) return;
     const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
@@ -565,94 +567,65 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
 
   const handleSave = async () => {
     setLoading(true);
-    try {
-      await gmWitchSave();
-      setLifeUsed(true);
-    } catch (e: unknown) {
-      console.error("[WitchStep] handleSave:", e);
-    } finally {
-      setLoading(false);
-    }
+    try { await gmWitchSave(); setLifeUsed(true); }
+    catch (e: unknown) { console.error("[WitchStep] handleSave:", e); }
+    finally { setLoading(false); }
   };
 
   const handleKill = async () => {
     if (!deathTarget) return;
     setLoading(true);
-    try {
-      await gmWitchKill(deathTarget);
-      setDeathUsed(true);
-    } catch (e: unknown) {
-      console.error("[WitchStep] handleKill:", e);
-    } finally {
-      setLoading(false);
-    }
+    try { await gmWitchKill(deathTarget); setDeathUsed(true); }
+    catch (e: unknown) { console.error("[WitchStep] handleKill:", e); }
+    finally { setLoading(false); }
   };
 
   if (mode === "waiting") {
-    return (
-      <WaitingForPlayer
-        playerName={witch?.name}
-        isConnected={witch?.isConnected ?? false}
-        action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
-        onOverride={handleOverride}
-      />
-    );
+    return <WaitingForPlayer playerName={witch?.name} isConnected={witch?.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)} onOverride={handleOverride} />;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-xs text-[#c8c0b0] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", fontStyle: "italic" }}>
-        La Sorcière ouvre les yeux et peut utiliser ses potions.
-      </p>
+    <div className="flex flex-col gap-3">
+      {witch && <DelegateButton playerName={witch.name} isConnected={witch.isConnected} onClick={handleDelegate} />}
 
-      {witch && (
-        <DelegateButton
-          playerName={witch.name}
-          isConnected={witch.isConnected}
-          onClick={handleDelegate}
-        />
-      )}
-
-      {/* Potion de vie — visible si disponible OU déjà utilisée cette nuit */}
       {(witchPotions?.life || lifeUsed) && (
-        <div className="p-3 rounded-xl" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
-          <p className="text-[9px] text-emerald-400 font-mono uppercase tracking-widest mb-2">🧪 Potion de vie</p>
+        <div className="p-3.5 rounded-xl" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
+          <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#34d399" }}>🧪 Potion de vie</p>
           {lifeUsed ? (
-            <p className="text-xs text-emerald-400 font-mono">✓ {victim?.name ?? "victime"} sera sauvé(e) cette nuit</p>
+            <p className="text-xs font-mono" style={{ color: "#34d399" }}>✓ {victim?.name ?? "victime"} sera sauvé(e)</p>
           ) : victim ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-[#c8c0b0] flex-1" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-                Les Loups ciblent <strong className="text-red-400">{victim.name}</strong>. Sauver ?
+              <p className="text-xs flex-1" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+                Les Loups ciblent <strong style={{ color: "#f87171" }}>{victim.name}</strong>. Sauver ?
               </p>
               <button onClick={handleSave} disabled={loading}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/10 transition-all"
-                style={{ fontFamily: "Cinzel, serif" }}>
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all"
+                style={{ color: "#34d399", borderColor: "rgba(52,211,153,0.35)", fontFamily: "Cinzel, serif" }}>
                 {loading ? "..." : "Sauver"}
               </button>
             </div>
           ) : (
-            <p className="text-xs text-[#9490a0] font-mono">Les Loups n'ont pas ciblé de victime</p>
+            <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>Les Loups n'ont pas ciblé de victime</p>
           )}
         </div>
       )}
 
-      {/* Potion de mort — visible si disponible OU déjà utilisée cette nuit */}
       {(witchPotions?.death || deathUsed) && (
-        <div className="p-3 rounded-xl" style={{ background: "rgba(139,28,28,0.06)", border: "1px solid rgba(139,28,28,0.2)" }}>
-          <p className="text-[9px] text-red-400 font-mono uppercase tracking-widest mb-2">💀 Potion de mort</p>
+        <div className="p-3.5 rounded-xl" style={{ background: "rgba(139,28,28,0.06)", border: "1px solid rgba(139,28,28,0.2)" }}>
+          <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#f87171" }}>💀 Potion de mort</p>
           {deathUsed ? (
-            <p className="text-xs text-red-400 font-mono">
-              ✓ Potion utilisée sur {game.players.find((p) => p.id === deathTarget)?.name ?? "cible"}
+            <p className="text-xs font-mono" style={{ color: "#f87171" }}>
+              ✓ Utilisée sur {game.players.find((p) => p.id === deathTarget)?.name ?? "cible"}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
               <PlayerPicker players={game.players} selected={deathTarget} onSelect={setDeathTarget}
-                exclude={witch ? [witch.id] : []}
-                label="Tuer quelqu'un (optionnel)" />
+                exclude={witch ? [witch.id] : []} label="Tuer quelqu'un (optionnel)" />
               {deathTarget && (
                 <button onClick={handleKill} disabled={loading}
-                  className="w-full py-2 rounded-xl text-xs font-semibold text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-all"
-                  style={{ fontFamily: "Cinzel, serif" }}>
+                  className="w-full py-2 rounded-xl text-xs font-semibold border transition-all"
+                  style={{ color: "#f87171", borderColor: "rgba(248,113,113,0.3)", fontFamily: "Cinzel, serif" }}>
                   {loading ? "..." : "💀 Utiliser la potion de mort"}
                 </button>
               )}
@@ -661,26 +634,21 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
         </div>
       )}
 
-      <button onClick={onDone} disabled={loading}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-[#f0e8d0] transition-all active:scale-95"
-        style={{ background: "linear-gradient(135deg, #8b1c1c, #6b1414)", fontFamily: "Cinzel, serif" }}>
-        Suivant →
-      </button>
+      <NightButton onClick={onDone} disabled={loading}>Passer →</NightButton>
     </div>
   );
 }
 
 // ── Composant principal ────────────────────────────────────────────────────────
 
-export function NightWizard({ onResolve }: { onResolve: () => void }) {
+export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => void; phaseNumber?: number }) {
   const { state, gmResolveNight } = useGame();
   const game = state.game!;
+  const [intro, setIntro] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [resolving, setResolving] = useState(false);
 
-  // Gelé au montage : buildSteps ne doit pas retirer dynamiquement une étape active
-  // (ex : Sorcière utilise les deux potions → witchPotions vides → étape disparaît → currentStep undefined → crash)
   const [steps] = useState(() => buildSteps(game));
   const currentStep = steps[stepIndex];
 
@@ -703,6 +671,7 @@ export function NightWizard({ onResolve }: { onResolve: () => void }) {
     }
   };
 
+  // ── Écran de résumé ──
   if (allDone) {
     const victimId = game.nightActions?.wolvesTarget;
     const victim = victimId ? game.players.find((p) => p.id === victimId) : null;
@@ -711,33 +680,38 @@ export function NightWizard({ onResolve }: { onResolve: () => void }) {
     const witchKillPlayer = witchKillId ? game.players.find((p) => p.id === witchKillId) : null;
 
     return (
-      <div className="p-4 rounded-2xl flex flex-col gap-4" style={{ background: "#0e0d14", border: "1px solid rgba(201,160,48,0.2)" }}>
-        <p className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest">Résumé de la nuit</p>
+      <div className="flex flex-col gap-4">
+        <div className="text-center">
+          <p className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Résumé de la nuit</p>
+          <div className="w-12 h-px mx-auto" style={{ background: "rgba(201,160,48,0.25)" }} />
+        </div>
 
-        {victim ? (
-          <div className="flex items-center gap-2">
-            <span className="text-base">{witchSaved ? "🧪" : "💀"}</span>
-            <p className="text-sm text-[#c8c0b0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-              {witchSaved
-                ? <><strong className="text-emerald-400">{victim.name}</strong> sauvé(e) par la Sorcière</>
-                : <><strong className="text-red-400">{victim.name}</strong> tué(e) par les Loups</>
-              }
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-[#9490a0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-            🌙 Les Loups n'ont tué personne
-          </p>
-        )}
+        <div className="flex flex-col gap-2">
+          {victim ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: witchSaved ? "rgba(16,185,129,0.08)" : "rgba(139,28,28,0.12)", border: `1px solid ${witchSaved ? "rgba(16,185,129,0.2)" : "rgba(139,28,28,0.3)"}` }}>
+              <span className="text-xl">{witchSaved ? "🧪" : "💀"}</span>
+              <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+                {witchSaved
+                  ? <><strong style={{ color: "#34d399" }}>{victim.name}</strong> sauvé(e) par la Sorcière</>
+                  : <><strong style={{ color: "#f87171" }}>{victim.name}</strong> tué(e) par les Loups</>}
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+              <span className="text-xl">🌙</span>
+              <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>Les Loups n'ont tué personne cette nuit</p>
+            </div>
+          )}
 
-        {witchKillPlayer && (
-          <div className="flex items-center gap-2">
-            <span className="text-base">☠️</span>
-            <p className="text-sm text-[#c8c0b0]" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>
-              <strong className="text-red-400">{witchKillPlayer.name}</strong> tué(e) par la potion de mort
-            </p>
-          </div>
-        )}
+          {witchKillPlayer && (
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(139,28,28,0.1)", border: "1px solid rgba(139,28,28,0.25)" }}>
+              <span className="text-xl">☠️</span>
+              <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+                <strong style={{ color: "#f87171" }}>{witchKillPlayer.name}</strong> tué(e) par la potion de mort
+              </p>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={handleResolve}
@@ -745,45 +719,118 @@ export function NightWizard({ onResolve }: { onResolve: () => void }) {
           className="w-full py-4 rounded-xl font-semibold uppercase text-sm tracking-widest transition-all active:scale-95 disabled:opacity-40"
           style={{
             fontFamily: "Cinzel, serif",
-            background: "linear-gradient(135deg, #8b1c1c 0%, #6b1414 100%)",
+            background: "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
             color: "#f0e8d0",
-            boxShadow: "0 0 24px rgba(139,28,28,0.35)",
+            border: "1px solid rgba(201,160,48,0.3)",
+            boxShadow: "0 4px 24px rgba(139,28,28,0.4)",
             letterSpacing: "0.1em",
           }}
         >
-          {resolving ? "Résolution..." : "☀️ Résoudre la nuit"}
+          {resolving ? "Résolution..." : "☀️ Réveiller le village"}
         </button>
       </div>
     );
   }
 
+  // ── Écran intro "Le village s'endort" ──
+  if (intro) {
+    return (
+      <div className="flex flex-col gap-5">
+        {/* Hero image nuit */}
+        <div className="relative w-full overflow-hidden rounded-2xl" style={{ height: 220 }}>
+          <img
+            src="/lycan/night-phase.png"
+            alt=""
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+          />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(11,10,15,0.95) 0%, rgba(13,10,42,0.3) 100%)" }} />
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 text-center">
+            <p className="text-[10px] font-mono uppercase tracking-[0.3em] mb-1" style={{ color: "rgba(165,180,252,0.7)" }}>
+              Nuit {phaseNumber}
+            </p>
+            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--gold)" }}>
+              Le village s'endort
+            </p>
+            <p className="text-sm italic mt-2" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "rgba(200,192,176,0.8)" }}>
+              Fermez les yeux. La nuit enveloppe Thiercelieux.
+            </p>
+          </div>
+        </div>
+
+        {/* Rôles qui vont jouer cette nuit */}
+        {steps.length > 0 && (
+          <div className="flex items-center justify-center gap-3">
+            {steps.map((s) => (
+              <div key={s.id} className="flex flex-col items-center gap-1">
+                <div className="w-9 h-9 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(201,160,48,0.2)" }}>
+                  <img src={STEP_META[s.id].img} alt={s.label}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+                </div>
+                <p className="text-[8px] font-mono" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <NightButton onClick={() => setIntro(false)}>
+          🌙 Lancer la nuit →
+        </NightButton>
+      </div>
+    );
+  }
+
+  if (!currentStep) return null;
+
+  const meta = STEP_META[currentStep.id];
+
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(201,160,48,0.18)" }}>
-      {/* Stepper */}
-      <div className="px-4 py-3 flex items-center gap-2" style={{ background: "#0e0d14" }}>
-        <span className="text-base">{currentStep.emoji}</span>
-        <p className="text-sm font-semibold text-[#e8ddd0] flex-1" style={{ fontFamily: "Cinzel, serif" }}>
-          {currentStep.label}
-        </p>
-        <div className="flex items-center gap-1.5">
-          {steps.map((s, i) => (
+    <div className="flex flex-col gap-4">
+
+      {/* Progression */}
+      <div className="flex items-center justify-center gap-2">
+        {steps.map((s, i) => (
+          <div key={s.id} className="flex items-center gap-1.5">
             <div
-              key={s.id}
-              className="w-5 h-5 rounded-full border flex items-center justify-center text-[8px] font-mono transition-colors"
+              className="w-6 h-6 rounded-full border flex items-center justify-center text-[9px] font-mono transition-all"
               style={{
-                background: i === stepIndex ? "rgba(139,28,28,0.3)" : i < stepIndex ? "rgba(16,185,129,0.2)" : "transparent",
-                borderColor: i === stepIndex ? "rgba(139,28,28,0.7)" : i < stepIndex ? "rgba(16,185,129,0.5)" : "rgba(201,160,48,0.2)",
+                background: i === stepIndex ? "rgba(139,28,28,0.3)" : i < stepIndex ? "rgba(16,185,129,0.15)" : "transparent",
+                borderColor: i === stepIndex ? "rgba(139,28,28,0.7)" : i < stepIndex ? "rgba(16,185,129,0.45)" : "rgba(201,160,48,0.18)",
                 color: i === stepIndex ? "#f0e8d0" : i < stepIndex ? "#34d399" : "#9490a0",
               }}
             >
-              {i < stepIndex ? <Check size={9} /> : i + 1}
+              {i < stepIndex ? <Check size={9} /> : s.emoji}
             </div>
-          ))}
+            {i < steps.length - 1 && (
+              <div className="w-4 h-px" style={{ background: i < stepIndex ? "rgba(16,185,129,0.35)" : "rgba(201,160,48,0.12)" }} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Carte rôle hero */}
+      <div className="relative w-full overflow-hidden rounded-2xl" style={{ height: 200 }}>
+        <img
+          src={meta.img}
+          alt={currentStep.label}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+        />
+        {/* Dégradé bas → nom du rôle lisible */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(11,10,15,0.95) 0%, rgba(11,10,15,0.1) 60%)" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(13,10,42,0.25)" }} />
+
+        {/* Texte en bas de la carte */}
+        <div className="absolute bottom-0 left-0 right-0 px-5 pb-4">
+          <p className="text-xl font-bold leading-tight" style={{ fontFamily: "var(--font-display)", color: "var(--gold)" }}>
+            {meta.title}
+          </p>
+          <p className="text-xs mt-1 italic" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "rgba(200,192,176,0.85)" }}>
+            {meta.narrative}
+          </p>
         </div>
       </div>
 
       {/* Contenu de l'étape */}
-      <div className="p-4" style={{ background: "#12111a" }}>
+      <div>
         {currentStep.id === "cupid" && <CupidStep game={game} onDone={advance} />}
         {currentStep.id === "seer" && <SeerStep game={game} onDone={advance} />}
         {currentStep.id === "wolves" && <WolvesStep game={game} onDone={advance} />}
