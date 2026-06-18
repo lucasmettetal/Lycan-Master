@@ -1991,28 +1991,58 @@ function HistoryScreen() {
   const [filter, setFilter] = useState<"all" | "night" | "day" | "vote" | "power">("all");
 
   const history = state.game?.history ?? [];
+  const game = state.game;
 
   const filters = [
     { id: "all" as const, label: "Tout" },
-    { id: "night" as const, label: "Nuit" },
-    { id: "day" as const, label: "Jour" },
+    { id: "night" as const, label: "Nuits" },
+    { id: "day" as const, label: "Jours" },
     { id: "vote" as const, label: "Votes" },
     { id: "power" as const, label: "Pouvoirs" },
   ];
 
   const filtered = filter === "all" ? history : history.filter((e) => e.type === filter);
 
-  const eventStyle: Record<string, { icon: string; cls: string }> = {
-    night: { icon: "🌙", cls: "text-indigo-300 border-indigo-400/30 bg-indigo-400/10" },
-    day: { icon: "☀️", cls: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
-    vote: { icon: "🗳️", cls: "text-red-400 border-red-400/30 bg-red-400/10" },
-    power: { icon: "✨", cls: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
+  // Grouper par phase (ex. "Nuit 1", "Jour 1"…)
+  const groups: { phase: string; events: typeof filtered }[] = [];
+  for (const event of filtered) {
+    const last = groups[groups.length - 1];
+    if (last && last.phase === event.phase) {
+      last.events.push(event);
+    } else {
+      groups.push({ phase: event.phase, events: [event] });
+    }
+  }
+
+  const phaseIcon = (phase: string): string | null => {
+    if (phase.startsWith("Nuit")) return "/lycan/ui/icon-phase-night.png";
+    if (phase.startsWith("Jour")) return "/lycan/ui/icon-phase-day.png";
+    if (phase.startsWith("Vote")) return "/lycan/ui/icon-phase-vote.png";
+    if (phase.startsWith("Fin")) return "/lycan/ui/icon-phase-end.png";
+    return null;
   };
+
+  const phaseColor = (phase: string) => {
+    if (phase.startsWith("Nuit")) return "rgba(99,102,241,0.7)";
+    if (phase.startsWith("Jour")) return "rgba(251,191,36,0.7)";
+    if (phase.startsWith("Vote")) return "rgba(248,113,113,0.7)";
+    return "var(--gold)";
+  };
+
+  const eventDot: Record<string, string> = {
+    night: "rgba(99,102,241,0.6)",
+    day: "rgba(251,191,36,0.6)",
+    vote: "rgba(248,113,113,0.6)",
+    power: "rgba(168,85,247,0.6)",
+  };
+
+  // Stats
+  const nightCount = game ? Math.max(0, game.phaseNumber - 1) : 0;
+  const deadCount = game?.players.filter(p => p.status === "dead").length ?? 0;
+  const voteEvents = history.filter(e => e.type === "vote").length;
 
   return (
     <div className="relative min-h-full" style={{ background: "var(--bg-deep)" }}>
-
-      {/* Background */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
         <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: "linear-gradient(180deg, rgba(11,10,15,0.4) 0%, rgba(11,10,15,0) 100%)" }} />
@@ -2021,7 +2051,7 @@ function HistoryScreen() {
       </div>
 
       <div className="relative z-10 px-5 py-6">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <BackButton onClick={() => navigate("dashboard")} />
           <span className="text-[9px] uppercase tracking-[0.3em] px-3 py-1 rounded-full"
             style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)", background: "rgba(11,10,15,0.5)", border: "1px solid var(--gold-subtle)" }}>
@@ -2029,7 +2059,29 @@ function HistoryScreen() {
           </span>
         </div>
 
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        {/* Stats résumé */}
+        {history.length > 0 && (
+          <div className="flex gap-2 mb-5">
+            {[
+              { label: "nuits", value: nightCount, icon: "/lycan/ui/icon-phase-night.png" },
+              { label: "morts", value: deadCount, icon: null, emoji: "💀" },
+              { label: "votes", value: voteEvents, icon: "/lycan/ui/icon-phase-vote.png" },
+            ].map(({ label, value, icon, emoji }) => (
+              <div key={label} className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl"
+                style={{ background: "rgba(11,10,15,0.55)", border: "1px solid rgba(201,160,48,0.08)" }}>
+                {icon
+                  ? <img src={icon} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                  : <span style={{ fontSize: 16 }}>{emoji}</span>
+                }
+                <span className="text-lg font-bold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)", lineHeight: 1 }}>{value}</span>
+                <span className="text-[8px] font-mono uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filtres */}
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {filters.map((f) => (
             <button key={f.id} onClick={() => setFilter(f.id)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-mono transition-all border"
               style={{
@@ -2042,32 +2094,44 @@ function HistoryScreen() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {groups.length === 0 ? (
           <p className="text-center text-sm py-8 font-mono" style={{ color: "var(--text-muted)" }}>Aucun événement encore</p>
         ) : (
-          <div className="relative">
-            <div className="absolute left-[15px] top-0 bottom-0 w-px" style={{ background: "var(--gold-subtle)" }} />
-            <div className="flex flex-col gap-4">
-              {filtered.map((event) => {
-                const cfg = eventStyle[event.type] ?? eventStyle.day;
-                return (
-                  <div key={event.id} className="flex gap-3.5 items-start">
-                    <div className={`relative z-10 w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 text-sm ${cfg.cls}`}>{cfg.icon}</div>
-                    <div className="flex-1 min-w-0 pt-1 pb-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: "var(--gold)" }}>{event.phase}</span>
-                        <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)", opacity: 0.6 }}>{event.time}</span>
-                      </div>
-                      <p className="text-sm leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{event.text}</p>
-                    </div>
+          <div className="flex flex-col gap-5">
+            {groups.map((group) => {
+              const icon = phaseIcon(group.phase);
+              const color = phaseColor(group.phase);
+              return (
+                <div key={group.phase}>
+                  {/* Header de phase */}
+                  <div className="flex items-center gap-2 mb-3">
+                    {icon
+                      ? <img src={icon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.75 }} />
+                      : <div className="w-4 h-4 rounded-full" style={{ background: color, opacity: 0.5 }} />
+                    }
+                    <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color }}>{group.phase}</span>
+                    <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${color.replace("0.7", "0.15")}, transparent)` }} />
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Événements du groupe */}
+                  <div className="flex flex-col gap-2.5 pl-2">
+                    {group.events.map((event) => (
+                      <div key={event.id} className="flex gap-3 items-start">
+                        <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: eventDot[event.type] ?? "var(--gold-dim)" }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{event.text}</p>
+                          <span className="text-[8px] font-mono" style={{ color: "var(--text-muted)", opacity: 0.5 }}>{event.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <div className="mt-6">
+        <div className="mt-8">
           <GoldOutlineButton onClick={() => navigate("dashboard")}>← Retour au tableau de bord</GoldOutlineButton>
         </div>
       </div>
