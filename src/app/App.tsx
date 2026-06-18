@@ -1535,21 +1535,75 @@ function PlayerViewScreen() {
           </div>
         )}
 
-        {/* Bannière de victoire */}
+        {/* Bannière de victoire + révélation des rôles */}
         {phase === "end" && winner && (
-          <div className="mx-5 mt-4 p-5 rounded-2xl text-center" style={{
-            background: winner === "wolves" ? "rgba(139,28,28,0.35)" : "rgba(16,185,129,0.15)",
-            border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : "rgba(16,185,129,0.4)"}`,
-            boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : "0 0 30px rgba(16,185,129,0.1)",
-          }}>
-            <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : "🏡"}</p>
-            <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : "#34d399" }}>
-              {winner === "wolves" ? "Les Loups ont gagné !" : "Le Village a gagné !"}
-            </p>
-            <p className="text-xs mt-2" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>
-              Vous pouvez révéler vos rôles.
-            </p>
-          </div>
+          <>
+            <div className="mx-5 mt-4 p-5 rounded-2xl text-center" style={{
+              background: winner === "wolves" ? "rgba(139,28,28,0.35)" : "rgba(16,185,129,0.15)",
+              border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : "rgba(16,185,129,0.4)"}`,
+              boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : "0 0 30px rgba(16,185,129,0.1)",
+            }}>
+              <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : "🏡"}</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : "#34d399" }}>
+                {winner === "wolves" ? "Les Loups ont gagné !" : "Le Village a gagné !"}
+              </p>
+            </div>
+
+            {/* Révélation de tous les rôles */}
+            {state.game && (
+              <div className="mx-5 mt-4">
+                <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
+                  Révélation des rôles
+                </p>
+                <div className="flex flex-col gap-2">
+                  {state.game.players.map((p) => {
+                    const roleData = ROLES_MAP[p.role ?? ""] ?? null;
+                    const img = p.role ? (ROLE_IMAGES[p.role] ?? null) : null;
+                    const isDead = p.status === "dead";
+                    const isWolf = roleData?.category === "wolves";
+                    const isMe = p.id === player.id;
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{
+                          background: isDead ? "rgba(11,10,15,0.5)" : isWolf ? "rgba(139,28,28,0.1)" : "rgba(11,10,15,0.6)",
+                          border: `1px solid ${isMe ? "rgba(201,160,48,0.35)" : isDead ? "rgba(255,255,255,0.04)" : isWolf ? "rgba(139,28,28,0.2)" : "rgba(201,160,48,0.08)"}`,
+                          opacity: isDead ? 0.6 : 1,
+                        }}
+                      >
+                        {/* Miniature rôle */}
+                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+                          style={{ background: "rgba(11,10,15,0.8)", border: "1px solid rgba(201,160,48,0.12)" }}>
+                          {img
+                            ? <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", filter: isDead ? "grayscale(60%) brightness(0.6)" : undefined }} />
+                            : <span style={{ fontSize: 18 }}>{roleData?.emoji ?? "❓"}</span>
+                          }
+                        </div>
+                        {/* Nom + rôle */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate" style={{ fontFamily: "var(--font-title)", color: isDead ? "var(--text-muted)" : "var(--text-primary)" }}>
+                              {p.name}
+                            </p>
+                            {p.isCapitaine && <Crown size={10} style={{ color: "var(--gold)", flexShrink: 0 }} />}
+                            {isMe && <span className="text-[8px] font-mono px-1 py-0.5 rounded" style={{ background: "rgba(201,160,48,0.1)", color: "var(--gold)" }}>toi</span>}
+                          </div>
+                          <p className="text-[11px]" style={{ fontFamily: "var(--font-body)", color: isWolf ? "rgba(248,113,113,0.7)" : "var(--text-muted)" }}>
+                            {roleData?.name ?? p.role ?? "Inconnu"}
+                          </p>
+                        </div>
+                        {/* Statut */}
+                        <span className="text-[9px] font-mono flex-shrink-0" style={{ color: isDead ? "rgba(248,113,113,0.5)" : "rgba(52,211,153,0.6)" }}>
+                          {isDead ? "mort" : "vivant"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Consigne actuelle */}
