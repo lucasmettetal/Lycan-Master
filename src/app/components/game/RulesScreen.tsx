@@ -171,9 +171,9 @@ function RoleCard({ role }: { role: RoleDetail }) {
     <div
       className="rounded-2xl overflow-hidden transition-all"
       style={{
-        background: "rgba(22,20,31,0.82)",
-        border: `1px solid ${expanded ? role.accentColor + "55" : "var(--gold-subtle)"}`,
-        boxShadow: expanded ? `0 0 20px ${role.accentColor}18` : "none",
+        background: "rgba(11,10,15,0.65)",
+        border: `1px solid ${expanded ? role.accentColor + "50" : "rgba(201,160,48,0.13)"}`,
+        boxShadow: expanded ? `0 0 20px ${role.accentColor}14` : "none",
       }}
     >
       {/* En-tête cliquable */}
@@ -295,7 +295,7 @@ export function RulesScreen() {
           </div>
 
           {/* Résumé */}
-          <div className="p-4 rounded-xl mb-5" style={{ background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-subtle)" }}>
+          <div className="p-4 rounded-xl mb-5" style={{ background: "rgba(11,10,15,0.65)", border: "1px solid var(--gold-subtle)" }}>
             <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "var(--gold)" }}>En bref</p>
             <p className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
               Les <span style={{ color: "#ef4444" }}>Loups-Garous</span> éliminent les Villageois chaque nuit. Le{" "}
@@ -335,7 +335,7 @@ export function RulesScreen() {
 
         {/* Ordre du tour */}
         <div className="px-5 mt-6">
-          <div className="p-4 rounded-xl" style={{ background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-subtle)" }}>
+          <div className="p-4 rounded-xl" style={{ background: "rgba(11,10,15,0.65)", border: "1px solid var(--gold-subtle)" }}>
             <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--gold)" }}>Ordre du tour (nuit)</p>
             <div className="flex flex-col gap-2">
               {[

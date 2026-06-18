@@ -103,8 +103,17 @@ function PrimaryButton({ children, onClick, disabled }: { children: React.ReactN
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-4 rounded-xl font-semibold uppercase text-sm tracking-widest transition-all active:scale-95 disabled:opacity-40"
-      style={{ fontFamily: "var(--font-title)", background: "linear-gradient(135deg, var(--red-wolf) 0%, #6b1414 100%)", color: "var(--text-primary)", boxShadow: disabled ? "none" : "0 0 24px var(--red-wolf-glow), inset 0 1px 0 rgba(255,255,255,0.07)", letterSpacing: "0.1em" }}
+      className="w-full rounded-xl font-semibold uppercase transition-all active:scale-[0.98] disabled:opacity-40"
+      style={{
+        fontFamily: "var(--font-title)",
+        color: "var(--text-primary)",
+        fontSize: "0.875rem",
+        letterSpacing: "0.12em",
+        padding: "16px 24px",
+        background: disabled ? "rgba(50,20,20,0.4)" : "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
+        border: "1px solid rgba(201,160,48,0.3)",
+        boxShadow: disabled ? "none" : "0 4px 18px rgba(139,28,28,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+      }}
     >
       {children}
     </button>
@@ -115,8 +124,16 @@ function GoldOutlineButton({ children, onClick }: { children: React.ReactNode; o
   return (
     <button
       onClick={onClick}
-      className="w-full py-3 rounded-xl text-sm transition-all active:scale-95 border"
-      style={{ fontFamily: "var(--font-title)", borderColor: "var(--gold-dim)", color: "var(--gold)", background: "transparent", letterSpacing: "0.06em" }}
+      className="w-full rounded-xl uppercase transition-all active:scale-[0.98]"
+      style={{
+        fontFamily: "var(--font-title)",
+        color: "var(--gold)",
+        fontSize: "0.875rem",
+        letterSpacing: "0.08em",
+        padding: "14px 24px",
+        background: "rgba(11,10,15,0.5)",
+        border: "1px solid rgba(201,160,48,0.35)",
+      }}
     >
       {children}
     </button>
@@ -125,7 +142,11 @@ function GoldOutlineButton({ children, onClick }: { children: React.ReactNode; o
 
 function DarkCard({ children, red }: { children: React.ReactNode; red?: boolean }) {
   return (
-    <div className="rounded-2xl p-5" style={{ background: "var(--bg-card)", border: `1px solid ${red ? "var(--red-wolf-dim)" : "var(--gold-glow)"}`, boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 var(--gold-subtle)" }}>
+    <div className="rounded-xl p-5" style={{
+      background: red ? "rgba(30,8,8,0.75)" : "rgba(11,10,15,0.68)",
+      border: `1px solid ${red ? "rgba(139,28,28,0.35)" : "rgba(201,160,48,0.16)"}`,
+      backdropFilter: "blur(6px)",
+    }}>
       {children}
     </div>
   );
@@ -150,7 +171,7 @@ function HomeScreen() {
   const { navigate, state } = useGame();
 
   return (
-    <div className="relative overflow-hidden flex flex-col items-center justify-between" style={{ minHeight: "100%", background: "var(--bg-deep)" }}>
+    <div className="relative overflow-hidden flex flex-col items-center" style={{ minHeight: "100%", background: "var(--bg-deep)" }}>
 
       {/* ── Fond : illustration village nocturne ── */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
@@ -178,75 +199,70 @@ function HomeScreen() {
       </div>
 
       {/* ── Logo + titre ── */}
-      <div className="flex flex-col items-center mt-12 gap-4 z-10">
-        <LycanLogo size={148} />
+      <div className="flex flex-col items-center mt-12 gap-3 z-10 px-6">
+        <LycanLogo size={120} />
 
         <h1
-          className="mt-2 text-center font-bold leading-none"
-          style={{ fontFamily: "var(--font-display)", color: "var(--gold)", fontSize: "2.6rem", textShadow: "0 2px 20px rgba(0,0,0,0.8)", letterSpacing: "0.03em" }}
+          className="mt-1 text-center font-bold leading-none"
+          style={{ fontFamily: "var(--font-display)", color: "var(--gold)", fontSize: "2.4rem", textShadow: "0 2px 24px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,48,0.2)", letterSpacing: "0.04em" }}
         >
           Lycan Master
         </h1>
 
-        {/* Séparateur diamant */}
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <span className="h-px w-14" style={{ background: "var(--gold-dim)" }} />
-          <span className="inline-block h-2 w-2 rotate-45" style={{ background: "var(--gold)" }} />
-          <span className="h-px w-14" style={{ background: "var(--gold-dim)" }} />
-        </div>
+        <img src="/lycan/ui/separator.png" alt="" aria-hidden="true" style={{ width: 180, height: "auto", opacity: 0.75 }} />
 
-        <p
-          className="text-center text-xs uppercase tracking-[0.38em]"
-          style={{ fontFamily: "var(--font-title)", color: "var(--text-secondary)" }}
-        >
+        <p className="text-center text-[11px] uppercase tracking-[0.4em]" style={{ fontFamily: "var(--font-title)", color: "var(--text-muted)" }}>
           Assistant du Maître du Jeu
-        </p>
-
-        <p
-          className="max-w-[280px] text-center text-lg italic leading-relaxed"
-          style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}
-        >
-          Guide tes nuits, révèle les rôles, garde le village en vie.
         </p>
       </div>
 
       {/* ── Boutons ── */}
-      <div className="w-full flex flex-col gap-4 px-6 mb-12 z-10">
-        {/* Primaire — rouge sang */}
+      <div className="w-full flex flex-col gap-3 px-6 mt-10 mb-12 z-10">
         <button
           onClick={() => navigate("create")}
-          className="w-full rounded-xl px-6 py-4 text-center text-base font-semibold uppercase tracking-widest transition-transform active:scale-[0.98]"
+          className="w-full rounded-xl font-semibold uppercase transition-all active:scale-[0.98]"
           style={{
             fontFamily: "var(--font-title)",
-            color: "var(--primary-foreground)",
-            background: "linear-gradient(180deg, #a52424 0%, var(--red-wolf) 100%)",
-            border: "1px solid rgba(201,160,48,0.4)",
-            boxShadow: "0 0 26px var(--red-wolf-glow), inset 0 1px 0 rgba(255,255,255,0.08)",
+            color: "var(--text-primary)",
+            fontSize: "0.9rem",
+            letterSpacing: "0.14em",
+            padding: "17px 24px",
+            background: "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
+            border: "1px solid rgba(201,160,48,0.32)",
+            boxShadow: "0 4px 22px rgba(139,28,28,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
           }}
         >
           Créer une partie
         </button>
 
-        {/* Secondaire — parchemin sombre, liseré or */}
         <button
           onClick={() => navigate("join")}
-          className="w-full rounded-xl px-6 py-4 text-center text-base font-medium uppercase tracking-widest transition-transform active:scale-[0.98]"
+          className="w-full rounded-xl font-medium uppercase transition-all active:scale-[0.98]"
           style={{
             fontFamily: "var(--font-title)",
             color: "var(--gold)",
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--gold-dim)",
-            boxShadow: "inset 0 1px 0 rgba(201,160,48,0.06)",
+            fontSize: "0.9rem",
+            letterSpacing: "0.12em",
+            padding: "16px 24px",
+            background: "rgba(11,10,15,0.55)",
+            border: "1px solid rgba(201,160,48,0.35)",
           }}
         >
           Rejoindre une partie
         </button>
 
-        {/* Tertiaire — ghost */}
         <button
           onClick={() => navigate("rules")}
-          className="w-full rounded-xl px-6 py-3 text-center text-sm uppercase tracking-[0.22em] transition-colors"
-          style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}
+          className="w-full uppercase transition-all active:opacity-70"
+          style={{
+            fontFamily: "var(--font-title)",
+            color: "var(--text-muted)",
+            fontSize: "0.75rem",
+            letterSpacing: "0.22em",
+            padding: "12px 24px",
+            background: "transparent",
+            border: "none",
+          }}
         >
           Règles et rôles
         </button>
@@ -291,65 +307,95 @@ function CreateScreen() {
 
   return (
     <div className="relative min-h-full" style={{ background: "var(--bg-deep)" }}>
+
+      {/* Background */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <img src="/lycan/lobby-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center" }} />
-        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.38)" }} />
+        <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: "linear-gradient(180deg, rgba(11,10,15,0.6) 0%, rgba(11,10,15,0) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.52)" }} />
       </div>
+
       <div className="relative z-10 px-5 py-6">
-      <div className="flex items-center gap-3 mb-8">
-        <BackButton onClick={() => navigate("home")} />
-        <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>Créer une partie</h2>
-        <span className="ml-auto text-[10px] uppercase tracking-[0.25em] px-3 py-1 rounded-full" style={{ fontFamily: "var(--font-mono)", color: "var(--gold)", background: "var(--gold-subtle)", border: "1px solid var(--gold-dim)" }}>
-          Nouvelle partie
-        </span>
-      </div>
 
-      {state.error && <ErrorBanner message={state.error} onDismiss={() => setError(null)} />}
-
-      <DarkCard>
-        <div className="mb-5">
-          <SectionLabel>Nom de la partie</SectionLabel>
-          <input
-            value={draft.name}
-            onChange={(e) => setDraft({ name: e.target.value })}
-            className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
-            style={{ fontFamily: "var(--font-body)", background: "var(--bg-deep)", border: "1px solid var(--gold-subtle)", color: "var(--text-primary)" }}
-            placeholder="Nom de la partie..."
-          />
+        {/* En-tête */}
+        <div className="flex items-center gap-3 mb-7">
+          <BackButton onClick={() => navigate("home")} />
+          <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>Créer une partie</h2>
         </div>
 
-        <div className="mb-5">
-          <SectionLabel>Nombre de joueurs</SectionLabel>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setDraft({ playerCount: Math.max(4, draft.playerCount - 1) })} className="w-10 h-10 rounded-full flex items-center justify-center text-xl font-light transition-all active:scale-90" style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}>−</button>
-            <span className="flex-1 text-center font-bold leading-none" style={{ fontFamily: "var(--font-title)", color: "var(--gold)", fontSize: "42px" }}>{draft.playerCount}</span>
-            <button onClick={() => setDraft({ playerCount: Math.min(24, draft.playerCount + 1) })} className="w-10 h-10 rounded-full flex items-center justify-center text-xl font-light transition-all active:scale-90" style={{ border: "1px solid var(--gold-dim)", color: "var(--gold)" }}>+</button>
+        {state.error && <ErrorBanner message={state.error} onDismiss={() => setError(null)} />}
+
+        {/* Formulaire */}
+        <div className="rounded-2xl p-5 flex flex-col gap-5" style={{ background: "rgba(11,10,15,0.72)", border: "1px solid rgba(201,160,48,0.15)", backdropFilter: "blur(6px)" }}>
+
+          {/* Nom */}
+          <div>
+            <SectionLabel>Nom de la partie</SectionLabel>
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft({ name: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+              style={{ fontFamily: "var(--font-body)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,160,48,0.2)", color: "var(--text-primary)" }}
+              placeholder="Soirée des Loups..."
+            />
           </div>
-          <p className="text-center text-[10px] mt-1 uppercase tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>joueurs</p>
-        </div>
 
-        <div>
-          <SectionLabel>Mode de jeu</SectionLabel>
-          <div className="grid grid-cols-2 gap-2">
-            {MODES.map((m) => (
-              <button key={m.id} onClick={() => setDraft({ mode: m.id })} className="py-2.5 rounded-xl text-xs font-medium transition-all active:scale-95 border"
-                style={{ fontFamily: "var(--font-title)", background: draft.mode === m.id ? "var(--red-wolf-dim)" : "transparent", borderColor: draft.mode === m.id ? "rgba(139,28,28,0.75)" : "var(--gold-subtle)", color: draft.mode === m.id ? "var(--text-primary)" : "var(--text-muted)", letterSpacing: "0.04em" }}>
-                {m.label}
-              </button>
-            ))}
+          {/* Compteur joueurs */}
+          <div>
+            <SectionLabel>Nombre de joueurs</SectionLabel>
+            <div className="flex items-center">
+              <button
+                onClick={() => setDraft({ playerCount: Math.max(4, draft.playerCount - 1) })}
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-light transition-all active:scale-90"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,160,48,0.2)", color: "var(--gold)" }}
+              >−</button>
+              <div className="flex-1 text-center">
+                <span className="font-bold leading-none" style={{ fontFamily: "var(--font-title)", color: "var(--gold)", fontSize: "2.4rem" }}>{draft.playerCount}</span>
+                <p className="text-[9px] uppercase tracking-widest mt-0.5" style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>joueurs</p>
+              </div>
+              <button
+                onClick={() => setDraft({ playerCount: Math.min(24, draft.playerCount + 1) })}
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-lg font-light transition-all active:scale-90"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,160,48,0.2)", color: "var(--gold)" }}
+              >+</button>
+            </div>
+          </div>
+
+          {/* Mode de jeu */}
+          <div>
+            <SectionLabel>Mode de jeu</SectionLabel>
+            <div className="grid grid-cols-2 gap-2">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setDraft({ mode: m.id })}
+                  className="py-3 rounded-xl text-xs font-medium transition-all active:scale-95"
+                  style={{
+                    fontFamily: "var(--font-title)",
+                    letterSpacing: "0.05em",
+                    background: draft.mode === m.id ? "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${draft.mode === m.id ? "rgba(201,160,48,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    color: draft.mode === m.id ? "var(--text-primary)" : "var(--text-muted)",
+                    boxShadow: draft.mode === m.id ? "0 2px 12px rgba(139,28,28,0.3)" : "none",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs leading-relaxed mt-3 px-1" style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--text-muted)" }}>
+              {MODES.find((m) => m.id === draft.mode)?.desc}
+            </p>
           </div>
         </div>
-      </DarkCard>
 
-      <div className="rounded-xl p-4 my-4" style={{ background: "var(--red-wolf-dim)", border: "1px solid rgba(139,28,28,0.2)" }}>
-        <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--text-secondary)", opacity: 0.9 }}>
-          {MODES.find((m) => m.id === draft.mode)?.desc}
-        </p>
-      </div>
+        {/* Bouton continuer */}
+        <div className="mt-5">
+          <PrimaryButton onClick={handleContinue} disabled={loading || !draft.name.trim()}>
+            {loading ? "Création..." : "Continuer →"}
+          </PrimaryButton>
+        </div>
 
-      <PrimaryButton onClick={handleContinue} disabled={loading || !draft.name.trim()}>
-        {loading ? "Création..." : "Continuer →"}
-      </PrimaryButton>
       </div>
     </div>
   );
@@ -443,17 +489,17 @@ function PlayersScreen() {
         <div className="flex flex-col gap-2 mb-4">
           {players.map((p) => (
             <div key={p.id} className="flex items-center gap-3 rounded-xl px-4 py-3"
-              style={{ background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-dim)" }}>
+              style={{ background: "rgba(11,10,15,0.65)", border: "1px solid rgba(201,160,48,0.15)" }}>
               <div className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold flex-shrink-0"
-                style={{ background: "var(--bg-deep)", color: "var(--gold)", border: "1px solid var(--gold-dim)", fontFamily: "var(--font-title)" }}>
+                style={{ background: "rgba(11,10,15,0.8)", color: "var(--gold)", border: "1px solid rgba(201,160,48,0.25)", fontFamily: "var(--font-title)" }}>
                 {p.name.slice(0, 2).toUpperCase()}
               </div>
               <span className="flex-1 text-sm truncate" style={{ fontFamily: "var(--font-body)", color: "var(--text-primary)" }}>{p.name}</span>
               <div className="flex items-center gap-2.5 flex-shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full"
-                  style={{ background: p.isConnected ? "#3f9d57" : "var(--text-muted)", boxShadow: p.isConnected ? "0 0 8px rgba(63,157,87,0.7)" : "none" }} />
-                <button onClick={() => gmRemovePlayer(p.id)} className="w-6 h-6 rounded flex items-center justify-center transition-colors" style={{ color: "var(--text-muted)" }}>
-                  <Trash2 size={12} />
+                <div className="w-2 h-2 rounded-full"
+                  style={{ background: p.isConnected ? "#3f9d57" : "rgba(148,144,160,0.35)", boxShadow: p.isConnected ? "0 0 6px rgba(63,157,87,0.6)" : "none" }} />
+                <button onClick={() => gmRemovePlayer(p.id)} className="w-7 h-7 rounded flex items-center justify-center transition-colors active:scale-90" style={{ color: "rgba(248,113,113,0.45)" }}>
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
@@ -472,7 +518,7 @@ function PlayersScreen() {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addPlayer()}
             className="flex-1 rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
-            style={{ fontFamily: "var(--font-body)", background: "rgba(22,20,31,0.82)", border: "1px solid var(--gold-dim)", color: "var(--text-primary)" }}
+            style={{ fontFamily: "var(--font-body)", background: "rgba(11,10,15,0.65)", border: "1px solid rgba(201,160,48,0.2)", color: "var(--text-primary)" }}
             placeholder="Nom du joueur..."
           />
           <button onClick={addPlayer} className="w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-90"
@@ -831,18 +877,16 @@ function DashboardScreen() {
         )}
 
         {/* En-tête de phase */}
-        <div className="px-5 pt-6 pb-5" style={{ background: phaseInfo.gradient }}>
-          <div className="flex items-start justify-between mb-4">
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <span className="text-[9px] uppercase tracking-[0.3em] px-3 py-1 rounded-full inline-block mb-2"
-                style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)", background: "rgba(11,10,15,0.5)", border: "1px solid var(--gold-subtle)" }}>
-                Phase actuelle
-              </span>
-              <h2 className="text-2xl font-bold flex items-center gap-2" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
+              <h2 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
                 {phaseInfo.icon} {phaseInfo.label}
-                {phase !== "end" && phase !== "waiting" && <span style={{ color: "var(--gold)", fontSize: "1.1rem" }}>#{game.phaseNumber}</span>}
+                {phase !== "end" && phase !== "waiting" && (
+                  <span className="text-sm font-mono" style={{ color: "var(--gold)" }}>#{game.phaseNumber}</span>
+                )}
               </h2>
-              <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--gold)" }}>Code : {game.id}</p>
+              <p className="text-[9px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>Code · {game.id}</p>
             </div>
             <button onClick={() => navigate("history")} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-all active:scale-90"
               style={{ border: "1px solid var(--gold-subtle)", color: "var(--text-muted)" }}>
@@ -854,11 +898,11 @@ function DashboardScreen() {
           {phase === "night" ? (
             <button
               onClick={() => setShowNightWizard(!showNightWizard)}
-              className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95 border"
+              className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
               style={{
                 fontFamily: "var(--font-title)",
-                background: showNightWizard ? "var(--red-wolf-dim)" : "rgba(13,10,42,0.5)",
-                borderColor: showNightWizard ? "rgba(139,28,28,0.6)" : "var(--gold-dim)",
+                background: showNightWizard ? "rgba(139,28,28,0.3)" : "rgba(11,10,15,0.55)",
+                border: `1px solid ${showNightWizard ? "rgba(139,28,28,0.5)" : "rgba(201,160,48,0.25)"}`,
                 color: showNightWizard ? "var(--text-primary)" : "var(--gold)",
                 letterSpacing: "0.06em",
               }}
@@ -866,16 +910,13 @@ function DashboardScreen() {
               {showNightWizard ? "▲ Fermer le guide nocturne" : "🌙 Ouvrir le guide nocturne"}
             </button>
           ) : (
-            <div className="rounded-xl p-3.5" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid var(--gold-subtle)" }}>
-              <p className="text-[9px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--gold)" }}>Actions maintenant</p>
-              <div className="flex flex-col gap-2">
+            <div className="rounded-xl p-3.5" style={{ background: "rgba(11,10,15,0.55)", border: "1px solid rgba(201,160,48,0.12)" }}>
+              <p className="text-[9px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--text-muted)" }}>À faire maintenant</p>
+              <div className="flex flex-col gap-1.5">
                 {phaseInfo.actions.map((action, i) => (
                   <div key={i} className="flex items-start gap-2.5">
-                    <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                      style={{ border: "1px solid var(--gold-dim)" }}>
-                      <span className="text-[8px] font-mono" style={{ color: "var(--gold)" }}>{i + 1}</span>
-                    </div>
-                    <p className="text-xs leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)", opacity: 0.85 }}>{action}</p>
+                    <span className="text-[9px] font-mono w-3 flex-shrink-0 mt-0.5" style={{ color: "var(--gold)" }}>{i + 1}.</span>
+                    <p className="text-xs leading-snug" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{action}</p>
                   </div>
                 ))}
               </div>
@@ -906,37 +947,53 @@ function DashboardScreen() {
             {game.players.map((p) => {
               const roleInfo = p.role ? ROLES_MAP[p.role] : null;
               const isLover = game.cupidLovers?.includes(p.id);
+              const isDead = p.status === "dead";
               return (
-                <div key={p.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${p.status === "dead" ? "opacity-45" : ""}`}
+                <div key={p.id}
+                  className="flex items-center gap-3 p-3 rounded-xl transition-all"
                   style={{
-                    background: "rgba(22,20,31,0.75)",
-                    border: `1px solid ${p.status === "dead" ? "rgba(255,0,0,0.08)" : isLover ? "rgba(236,72,153,0.25)" : "var(--gold-subtle)"}`,
+                    background: isDead ? "rgba(11,10,15,0.45)" : "rgba(11,10,15,0.65)",
+                    border: `1px solid ${isDead ? "rgba(255,80,80,0.1)" : isLover ? "rgba(236,72,153,0.3)" : "rgba(201,160,48,0.14)"}`,
+                    opacity: isDead ? 0.55 : 1,
                   }}>
                   <Avatar name={p.name} status={p.status} isCapitaine={p.isCapitaine} />
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <p className="text-sm font-semibold truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
                       {isLover && <span className="text-xs flex-shrink-0">💘</span>}
                     </div>
-                    <p className="text-xs italic truncate" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>
-                      {roleInfo ? `${roleInfo.emoji} ${roleInfo.name}` : "Rôle non attribué"}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {roleInfo ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-mono flex-shrink-0"
+                          style={{ background: "rgba(201,160,48,0.1)", color: "var(--gold)", border: "1px solid rgba(201,160,48,0.15)" }}>
+                          {roleInfo.emoji} {roleInfo.name}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: p.isConnected ? "#3f9d57" : "rgba(148,144,160,0.3)" }} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.isConnected ? "#3f9d57" : "var(--text-muted)" }} />
+
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <StatusBadge status={p.status} />
                     {p.status === "alive" && (
-                      <div className="flex gap-1 ml-1">
-                        <button onClick={() => handleSetCaptain(p.id)} title="Désigner Capitaine" className="w-6 h-6 rounded flex items-center justify-center transition-colors" style={{ color: "var(--gold)", opacity: 0.6 }}>
-                          <Crown size={11} />
+                      <>
+                        <button onClick={() => handleSetCaptain(p.id)} title="Capitaine" className="w-7 h-7 rounded flex items-center justify-center transition-colors active:scale-90"
+                          style={{ color: "var(--gold)", opacity: 0.55 }}>
+                          <Crown size={12} />
                         </button>
-                        <button onClick={() => handleEliminate(p.id)} title="Éliminer" className="w-6 h-6 rounded flex items-center justify-center transition-colors" style={{ color: "var(--text-muted)" }}>
+                        <button onClick={() => handleEliminate(p.id)} title="Éliminer" className="w-7 h-7 rounded flex items-center justify-center transition-colors active:scale-90"
+                          style={{ color: "rgba(248,113,113,0.5)" }}>
                           💀
                         </button>
-                      </div>
+                      </>
                     )}
                     {import.meta.env.DEV && (
-                      <button onClick={() => setSimPlayerId(p.id)} title="Vue joueur simulée (DEV)" className="w-6 h-6 rounded flex items-center justify-center transition-colors ml-0.5" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
+                      <button onClick={() => setSimPlayerId(p.id)} title="Vue joueur simulée" className="w-6 h-6 rounded flex items-center justify-center ml-0.5"
+                        style={{ color: "var(--text-muted)", opacity: 0.35 }}>
                         <Eye size={10} />
                       </button>
                     )}
@@ -1051,10 +1108,12 @@ function PlayerViewScreen() {
 
   const phaseImages: Record<string, string> = {
     night: "/lycan/night-phase.png",
+    day: "/lycan/village-night.png",
     vote: "/lycan/vote-day.png",
     end: "/lycan/victory-village.png",
+    waiting: "/lycan/lobby-night.png",
   };
-  const bgImage = phaseImages[phase as string] ?? null;
+  const bgImage = phaseImages[phase as string] ?? "/lycan/village-night.png";
 
   const ROLE_IMAGES: Record<string, string> = {
     werewolf:   "/lycan/roles/loup-garou.png",
@@ -1074,12 +1133,10 @@ function PlayerViewScreen() {
     <div className="relative min-h-full flex flex-col pb-8" style={{ background: "var(--bg-deep)" }}>
 
       {/* ── Background image (phase-specific) ── */}
-      {bgImage && (
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <img src={bgImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
-          <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.32)" }} />
-        </div>
-      )}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src={bgImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.38)" }} />
+      </div>
 
       <div className="relative z-10 flex flex-col flex-1">
         {/* Header */}
@@ -1101,7 +1158,7 @@ function PlayerViewScreen() {
 
         {/* Carte rôle / mort / attente */}
         {player.status === "dead" ? (
-          <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "rgba(22,20,31,0.85)", border: "1px solid rgba(255,0,0,0.22)" }}>
+          <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "rgba(11,10,15,0.72)", border: "1px solid rgba(255,0,0,0.22)" }}>
             <div className="text-6xl">💀</div>
             <p className="text-xl font-bold text-red-400" style={{ fontFamily: "var(--font-title)" }}>Tu es mort(e)</p>
             <p className="text-sm text-center" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Reste silencieux·se. Ne révèle pas ton rôle.</p>
@@ -1155,7 +1212,7 @@ function PlayerViewScreen() {
             <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--gold-dim), transparent)" }} />
           </div>
         ) : (
-          <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "rgba(22,20,31,0.85)", border: "1px solid var(--gold-subtle)" }}>
+          <div className="mx-5 py-8 px-6 rounded-2xl flex flex-col items-center gap-4" style={{ background: "rgba(11,10,15,0.72)", border: "1px solid var(--gold-subtle)" }}>
             <div className="text-6xl">⏳</div>
             <p className="text-xl font-bold" style={{ fontFamily: "var(--font-title)", color: "var(--gold)" }}>En attente</p>
             <p className="text-sm text-center" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Le Maître du Jeu n'a pas encore lancé la partie.</p>
@@ -1180,8 +1237,8 @@ function PlayerViewScreen() {
         )}
 
         {/* Consigne actuelle */}
-        <div className="mx-5 mt-4 p-4 rounded-xl" style={{ background: "rgba(22,20,31,0.75)", border: "1px solid var(--red-wolf-dim)" }}>
-          <p className="text-[9px] font-mono uppercase tracking-wider mb-2" style={{ color: "var(--red-wolf)" }}>Consigne actuelle</p>
+        <div className="mx-5 mt-4 p-4 rounded-xl" style={{ background: "rgba(11,10,15,0.6)", border: "1px solid rgba(201,160,48,0.15)", backdropFilter: "blur(4px)" }}>
+          <p className="text-[9px] font-mono uppercase tracking-wider mb-2" style={{ color: "var(--gold)" }}>Consigne du MJ</p>
           <p className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{instruction}</p>
         </div>
 
@@ -1199,7 +1256,7 @@ function PlayerViewScreen() {
                   <div key={target.id} className="rounded-xl overflow-hidden"
                     style={{ border: `1px solid ${voted ? "rgba(139,28,28,0.55)" : "var(--gold-subtle)"}` }}>
                     <div className="flex items-center gap-3 p-3"
-                      style={{ background: isLeader ? "var(--red-wolf-dim)" : "rgba(22,20,31,0.75)" }}>
+                      style={{ background: isLeader ? "rgba(139,28,28,0.25)" : "rgba(11,10,15,0.6)" }}>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium mb-1.5" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{target.name}</p>
                         <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-surface)" }}>
@@ -1346,7 +1403,7 @@ function VoteScreen() {
               <div key={p.id} className="rounded-xl overflow-hidden"
                 style={{ border: `1px solid ${isLeader ? "rgba(139,28,28,0.55)" : "var(--gold-subtle)"}` }}>
                 <div className="flex items-center gap-3 p-3"
-                  style={{ background: isLeader ? "var(--red-wolf-dim)" : "rgba(22,20,31,0.75)" }}>
+                  style={{ background: isLeader ? "rgba(139,28,28,0.25)" : "rgba(11,10,15,0.6)" }}>
                   <Avatar name={p.name} status={p.status} isCapitaine={p.isCapitaine} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -1560,9 +1617,9 @@ function HistoryScreen() {
           {filters.map((f) => (
             <button key={f.id} onClick={() => setFilter(f.id)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-mono transition-all border"
               style={{
-                background: filter === f.id ? "var(--red-wolf-dim)" : "rgba(11,10,15,0.45)",
-                borderColor: filter === f.id ? "rgba(139,28,28,0.75)" : "var(--gold-subtle)",
-                color: filter === f.id ? "var(--text-primary)" : "var(--text-muted)",
+                background: filter === f.id ? "rgba(201,160,48,0.12)" : "rgba(11,10,15,0.45)",
+                borderColor: filter === f.id ? "rgba(201,160,48,0.45)" : "var(--gold-subtle)",
+                color: filter === f.id ? "var(--gold)" : "var(--text-muted)",
               }}>
               {f.label}
             </button>
@@ -1688,7 +1745,7 @@ function AppInner() {
 
       {/* Label écran actuel (dev uniquement) */}
       <div className="fixed bottom-5 left-1/2 -translate-x-1/2">
-        <div className="px-4 py-1.5 rounded-full border" style={{ background: "rgba(22,20,31,0.9)", borderColor: "rgba(201,160,48,0.2)" }}>
+        <div className="px-4 py-1.5 rounded-full border" style={{ background: "rgba(11,10,15,0.85)", borderColor: "rgba(201,160,48,0.2)" }}>
           <span className="text-[9px] text-[#c9a030] font-mono uppercase tracking-widest">{SCREEN_LABELS[view]}</span>
         </div>
       </div>
