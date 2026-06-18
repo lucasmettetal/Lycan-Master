@@ -334,8 +334,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const gmStart = async () => {
     await _update((g) => {
-      let ng = assignRoles(g);
-      ng = nextPhase(ng);
+      const ng = assignRoles(g);
       return { ...ng, status: "running" };
     });
   };
@@ -551,9 +550,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (!voter || voter.status === "dead") return; // un mort ne vote pas
 
     const newVotesByPlayer = { ...(current.votesByPlayer ?? {}), [voterId]: targetId };
+    const capitaineId = current.players.find((p) => p.isCapitaine)?.id;
     const players = current.players.map((p) => ({
       ...p,
-      votes: Object.values(newVotesByPlayer).filter((v) => v === p.id).length,
+      votes: Object.entries(newVotesByPlayer)
+        .filter(([, tid]) => tid === p.id)
+        .reduce((sum, [vid]) => sum + (vid === capitaineId ? 2 : 1), 0),
     }));
     const newState = { ...current, votesByPlayer: newVotesByPlayer, players };
     gameRef.current = newState;

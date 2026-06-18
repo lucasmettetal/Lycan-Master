@@ -857,10 +857,11 @@ function DashboardScreen() {
   const voteResult = (() => {
     if (phase !== "vote") return null;
     const aliveIds = new Set(game.players.filter((p) => p.status !== "dead").map((p) => p.id));
+    const capitaineId = game.players.find((p) => p.isCapitaine)?.id;
     const counts: Record<string, number> = {};
     for (const [voterId, targetId] of Object.entries(game.votesByPlayer ?? {})) {
       if (!aliveIds.has(voterId)) continue;
-      counts[targetId] = (counts[targetId] ?? 0) + 1;
+      counts[targetId] = (counts[targetId] ?? 0) + (voterId === capitaineId ? 2 : 1);
     }
     const entries = Object.entries(counts);
     if (entries.length === 0) return { type: "no_votes" as const };
@@ -1087,6 +1088,16 @@ function DashboardScreen() {
           )}
           {phase === "vote" && (
             <>
+              {(() => {
+                const aliveCount = game.players.filter(p => p.status !== "dead").length;
+                const votedCount = Object.keys(game.votesByPlayer ?? {}).length;
+                const allVoted = votedCount >= aliveCount && aliveCount > 0;
+                return (
+                  <p className="text-center text-[10px] font-mono" style={{ color: allVoted ? "rgba(52,211,153,0.8)" : "var(--text-muted)" }}>
+                    {allVoted ? "✓ Tous les joueurs ont voté" : `${votedCount} / ${aliveCount} joueurs ont voté`}
+                  </p>
+                );
+              })()}
               <GoldOutlineButton onClick={() => navigate("vote")}>📊 Voir les votes</GoldOutlineButton>
               {confirmNoVote ? (
                 <div className="flex flex-col gap-2">
@@ -1116,9 +1127,40 @@ function DashboardScreen() {
             </>
           )}
           {phase === "waiting" && (
-            <p className="text-center text-[10px] font-mono py-2" style={{ color: "var(--text-muted)" }}>
-              En attente du lancement de la partie…
-            </p>
+            <div className="flex flex-col gap-3">
+              <div className="rounded-xl p-4" style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.14)" }}>
+                <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--gold)" }}>
+                  ⚔️ Désigner le Capitaine
+                </p>
+                <p className="text-[10px] mb-3" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)", fontStyle: "italic" }}>
+                  Les joueurs votent à l'oral. Tape le joueur élu.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {alivePlayers.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSetCaptain(p.id)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all active:scale-[0.98] border"
+                      style={{
+                        background: p.isCapitaine ? "rgba(201,160,48,0.1)" : "rgba(11,10,15,0.5)",
+                        borderColor: p.isCapitaine ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.07)",
+                      }}
+                    >
+                      <Crown size={12} style={{ color: p.isCapitaine ? "var(--gold)" : "rgba(201,160,48,0.2)", flexShrink: 0 }} />
+                      <span className="text-sm flex-1" style={{ fontFamily: "var(--font-title)", color: p.isCapitaine ? "var(--gold)" : "var(--text-secondary)" }}>
+                        {p.name}
+                      </span>
+                      {p.isCapitaine && (
+                        <span className="text-[9px] font-mono" style={{ color: "var(--gold)" }}>CAPITAINE</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <PrimaryButton onClick={handleNextPhase}>
+                🌙 Passer à la 1ère Nuit →
+              </PrimaryButton>
+            </div>
           )}
           {phase !== "end" && (
             <div className="flex gap-2 mt-1">
@@ -1156,6 +1198,17 @@ function PlayerViewScreen() {
   const [screenHidden, setScreenHidden] = useState(false);
   const [cardHidden, setCardHidden] = useState(false);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restaurer le vote du joueur depuis l'état jeu (résiste au rechargement/reconnexion)
+  useEffect(() => {
+    const playerId = pv?.player?.id;
+    if (!playerId || !state.game) return;
+    if (pv.phase === "vote") {
+      setMyVote(state.game.votesByPlayer?.[playerId] ?? null);
+    } else {
+      setMyVote(null);
+    }
+  }, [pv?.phase, pv?.player?.id]);
 
   if (!pv) {
     return (
@@ -1465,11 +1518,29 @@ function PlayerViewScreen() {
         {/* Zone de vote */}
         {phase === "vote" && player.status !== "dead" && currentVotes.length > 0 && (
           <div className="mx-5 mt-4">
-            <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>Voter contre</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                {myVote ? "✓ Vote enregistré" : "Voter contre"}
+              </p>
+              {(() => {
+                const aliveCount = currentVotes.filter(p => p.status !== "dead").length;
+                const votedCount = Object.keys(state.game?.votesByPlayer ?? {}).length;
+                return (
+                  <p className="text-[9px] font-mono" style={{ color: votedCount === aliveCount ? "rgba(52,211,153,0.7)" : "var(--text-muted)" }}>
+                    {votedCount}/{aliveCount} ont voté
+                  </p>
+                );
+              })()}
+            </div>
+            {player.isCapitaine && (
+              <p className="text-[9px] font-mono mb-2" style={{ color: "var(--gold)", opacity: 0.6 }}>
+                ⚔️ Ton vote compte double
+              </p>
+            )}
             <div className="flex flex-col gap-2">
               {currentVotes.filter((p) => p.status !== "dead" && p.id !== player.id).map((target) => {
-                const pct = currentVotes.reduce((s, p) => s + p.votes, 0) > 0
-                  ? (target.votes / currentVotes.reduce((s, p) => s + p.votes, 0)) * 100 : 0;
+                const totalVotes = currentVotes.reduce((s, p) => s + p.votes, 0);
+                const pct = totalVotes > 0 ? (target.votes / totalVotes) * 100 : 0;
                 const isLeader = target.votes > 0 && target.votes === maxVotes;
                 const voted = myVote === target.id;
                 return (
