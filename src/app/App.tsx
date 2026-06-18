@@ -1253,6 +1253,11 @@ function PlayerViewScreen() {
     }
   }, [pv?.phase, pv?.player?.id]);
 
+  // Réinitialiser screenHidden à chaque changement de phase
+  useEffect(() => {
+    setScreenHidden(false);
+  }, [pv?.phase]);
+
   if (!pv) {
     return (
       <div className="relative min-h-full flex flex-col items-center justify-center gap-4 px-5" style={{ background: "var(--bg-deep)" }}>

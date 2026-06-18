@@ -340,7 +340,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const gmNextPhase = async () => {
-    await _update((g) => nextPhase(g));
+    await _update((g) => {
+      const next = nextPhase(g);
+      if (next.phase === "vote") {
+        return {
+          ...next,
+          votesByPlayer: {},
+          players: next.players.map((p) => ({ ...p, votes: 0 })),
+        };
+      }
+      return next;
+    });
   };
 
   const gmResolveVote = async (winnerId: string | null): Promise<void> => {
