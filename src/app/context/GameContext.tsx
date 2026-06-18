@@ -15,6 +15,8 @@ import {
   witchKill,
   cupidLink,
   resolveNight,
+  killPlayer,
+  checkWinCondition,
   hunterShoot,
   eliminatePlayer,
   endGame,
@@ -152,6 +154,9 @@ interface GameContextValue {
   corbeauSetTarget: (targetId: string) => Promise<void>;
   chienLoupChoose: (choice: "wolves" | "village") => Promise<void>;
   gmTransferRole: (fromPlayerId: string, toPlayerId: string) => Promise<void>;
+  gmSalvatorProtect: (targetId: string) => Promise<void>;
+  gmWhitewolfKill: (targetId: string | null) => Promise<void>;
+  gmInfectTarget: (targetId: string | null) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -496,7 +501,82 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const gmResolveNight = async () => {
-    await _update((g) => resolveNight(g));
+    await _update((g) => {
+      let processed = { ...g };
+
+      // 1. Infect Père des Loups — infecte la victime au lieu de la tuer
+      const infectId = processed.nightActions.infectTarget ?? null;
+      if (infectId && !processed.infectUsed) {
+        const infectTarget = processed.players.find((p) => p.id === infectId && p.status !== "dead");
+        if (infectTarget) {
+          processed = addHistoryEvent(processed, `☣️ ${infectTarget.name} est infecté(e) et rejoint secrètement la meute !`, "power");
+          processed = {
+            ...processed,
+            infectUsed: true,
+            players: processed.players.map((p) => p.id === infectId ? { ...p, role: "werewolf" } : p),
+            nightActions: { ...processed.nightActions, wolvesTarget: null, infectTarget: null },
+          };
+        }
+      }
+
+      // 2. Salvateur — annule le kill des loups si la cible est protégée
+      const salvatorId = processed.nightActions.salvatorTarget ?? null;
+      if (salvatorId && processed.nightActions.wolvesTarget === salvatorId) {
+        const saved = processed.players.find((p) => p.id === salvatorId);
+        if (saved) {
+          processed = addHistoryEvent(processed, `🛡️ ${saved.name} est protégé(e) par le Salvateur cette nuit`, "power");
+          processed = { ...processed, nightActions: { ...processed.nightActions, wolvesTarget: null } };
+        }
+      }
+      processed = { ...processed, lastSalvatorTarget: salvatorId };
+
+      // 3. Résolution standard (loups + sorcière + Cupidon + Chasseur + win check)
+      let result = resolveNight(processed);
+
+      // 4. Loup-Garou Blanc — kill nocturne solo (appliqué après la résolution standard)
+      const whitewolfKillId = g.nightActions.whitewolfTarget ?? null;
+      if (whitewolfKillId && result.status === "running") {
+        const lb = result.players.find((p) => p.role === "loup_blanc" && p.status !== "dead");
+        const wbTarget = result.players.find((p) => p.id === whitewolfKillId && p.status !== "dead");
+        if (lb && wbTarget) {
+          const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          result = { ...result, history: [...result.history, { id: Date.now().toString(), type: "power" as const, text: `🐺 ${lb.name} (LG Blanc) élimine ${wbTarget.name} dans son sommeil`, phase: `Nuit ${result.phaseNumber}`, time: now }] };
+          result = killPlayer(result, whitewolfKillId, "night");
+          result = checkWinCondition(result);
+        }
+      }
+
+      // 5. Loup-Garou Blanc — victoire solitaire si dernier survivant
+      if (result.status === "running") {
+        const alive = result.players.filter((p) => p.status !== "dead");
+        const lb = alive.find((p) => p.role === "loup_blanc");
+        if (lb && alive.length === 1) {
+          const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          result = {
+            ...result,
+            status: "finished" as const,
+            winner: "whitewolf" as const,
+            phase: "end" as const,
+            pendingHunterActions: [],
+            history: [...result.history, { id: Date.now().toString() + "ww", type: "power" as const, text: `🐺 ${lb.name} (LG Blanc) est le dernier survivant — victoire solitaire !`, phase: "Fin de partie", time: now }],
+          };
+        }
+      }
+
+      return result;
+    });
+  };
+
+  const gmSalvatorProtect = async (targetId: string) => {
+    await _update((g) => ({ ...g, nightActions: { ...g.nightActions, salvatorTarget: targetId } }));
+  };
+
+  const gmWhitewolfKill = async (targetId: string | null) => {
+    await _update((g) => ({ ...g, nightActions: { ...g.nightActions, whitewolfTarget: targetId } }));
+  };
+
+  const gmInfectTarget = async (targetId: string | null) => {
+    await _update((g) => ({ ...g, nightActions: { ...g.nightActions, infectTarget: targetId } }));
   };
 
   // ── GM: Actions privées joueur ────────────────────────────────────────────────
@@ -716,6 +796,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmCreatePlayerAction, gmCancelPlayerAction,
         playerJoin, playerVote, playerResolveAction,
         corbeauSetTarget, chienLoupChoose, gmTransferRole,
+        gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
       }}
     >
       {children}

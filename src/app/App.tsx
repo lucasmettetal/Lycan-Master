@@ -1094,11 +1094,11 @@ function DashboardScreen() {
         {/* Bannière de victoire */}
         {phase === "end" && game.winner && (() => {
           const w = game.winner;
-          const bg = w === "wolves" ? "rgba(139,28,28,0.35)" : w === "angel" ? "rgba(168,85,247,0.2)" : "rgba(16,185,129,0.15)";
-          const border = w === "wolves" ? "rgba(139,28,28,0.6)" : w === "angel" ? "rgba(168,85,247,0.5)" : "rgba(16,185,129,0.4)";
-          const color = w === "wolves" ? "#f87171" : w === "angel" ? "#c084fc" : "#34d399";
-          const emoji = w === "wolves" ? "🐺" : w === "angel" ? "😇" : "🏡";
-          const label = w === "wolves" ? "Les Loups-Garous ont gagné !" : w === "angel" ? "L'Ange a gagné seul !" : "Le Village a gagné !";
+          const bg = w === "wolves" ? "rgba(139,28,28,0.35)" : w === "angel" ? "rgba(168,85,247,0.2)" : w === "whitewolf" ? "rgba(99,102,241,0.2)" : "rgba(16,185,129,0.15)";
+          const border = w === "wolves" ? "rgba(139,28,28,0.6)" : w === "angel" ? "rgba(168,85,247,0.5)" : w === "whitewolf" ? "rgba(99,102,241,0.5)" : "rgba(16,185,129,0.4)";
+          const color = w === "wolves" ? "#f87171" : w === "angel" ? "#c084fc" : w === "whitewolf" ? "#818cf8" : "#34d399";
+          const emoji = w === "wolves" ? "🐺" : w === "angel" ? "😇" : w === "whitewolf" ? "🐺" : "🏡";
+          const label = w === "wolves" ? "Les Loups-Garous ont gagné !" : w === "angel" ? "L'Ange a gagné seul !" : w === "whitewolf" ? "Le LG Blanc a gagné seul !" : "Le Village a gagné !";
           return (
             <div className="px-5 pt-5 pb-0">
               <div className="p-5 rounded-2xl text-center" style={{ background: bg, border: `1px solid ${border}`, boxShadow: `0 0 30px ${border.replace("0.6", "0.2").replace("0.5", "0.15").replace("0.4", "0.1")}` }}>
@@ -1647,13 +1647,13 @@ function PlayerViewScreen() {
         {phase === "end" && winner && (
           <>
             <div className="mx-5 mt-4 p-5 rounded-2xl text-center" style={{
-              background: winner === "wolves" ? "rgba(139,28,28,0.35)" : winner === "angel" ? "rgba(168,85,247,0.2)" : "rgba(16,185,129,0.15)",
-              border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : winner === "angel" ? "rgba(168,85,247,0.5)" : "rgba(16,185,129,0.4)"}`,
-              boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : winner === "angel" ? "0 0 30px rgba(168,85,247,0.15)" : "0 0 30px rgba(16,185,129,0.1)",
+              background: winner === "wolves" ? "rgba(139,28,28,0.35)" : winner === "angel" ? "rgba(168,85,247,0.2)" : winner === "whitewolf" ? "rgba(99,102,241,0.2)" : "rgba(16,185,129,0.15)",
+              border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : winner === "angel" ? "rgba(168,85,247,0.5)" : winner === "whitewolf" ? "rgba(99,102,241,0.5)" : "rgba(16,185,129,0.4)"}`,
+              boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : winner === "angel" ? "0 0 30px rgba(168,85,247,0.15)" : winner === "whitewolf" ? "0 0 30px rgba(99,102,241,0.15)" : "0 0 30px rgba(16,185,129,0.1)",
             }}>
-              <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : winner === "angel" ? "😇" : "🏡"}</p>
-              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : winner === "angel" ? "#c084fc" : "#34d399" }}>
-                {winner === "wolves" ? "Les Loups ont gagné !" : winner === "angel" ? "L'Ange a gagné seul !" : "Le Village a gagné !"}
+              <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : winner === "angel" ? "😇" : winner === "whitewolf" ? "🐺" : "🏡"}</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : winner === "angel" ? "#c084fc" : winner === "whitewolf" ? "#818cf8" : "#34d399" }}>
+                {winner === "wolves" ? "Les Loups ont gagné !" : winner === "angel" ? "L'Ange a gagné seul !" : winner === "whitewolf" ? "Le LG Blanc a gagné seul !" : "Le Village a gagné !"}
               </p>
             </div>
 

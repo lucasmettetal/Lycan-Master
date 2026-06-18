@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { Check, Smartphone, RotateCcw } from "lucide-react";
 import { useGame } from "../../context/GameContext";
 import type { GameState, Player, PlayerAction } from "../../context/GameContext";
-import { ROLES } from "../../../lib/roles";
+import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "seer" | "wolves" | "witch";
+type StepId = "cupid" | "seer" | "wolves" | "infect_pdl" | "witch" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -39,10 +39,25 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "Les Loups se réveillent",
     narrative: "Ils se reconnaissent et désignent leur proie dans le silence.",
   },
+  infect_pdl: {
+    img: "/lycan/roles/loup-garou.png",
+    title: "L'Infect Père des Loups",
+    narrative: "Il peut choisir d'infecter la victime plutôt que de la tuer.",
+  },
   witch: {
     img: "/lycan/roles/sorciere.png",
     title: "La Sorcière ouvre les yeux",
     narrative: "Elle tient entre ses mains le destin des villageois.",
+  },
+  salvateur: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Salvateur veille",
+    narrative: "Il choisit en silence qui il protégera cette nuit.",
+  },
+  whitewolf: {
+    img: "/lycan/roles/loup-garou.png",
+    title: "Le Loup-Garou Blanc",
+    narrative: "Dans l'ombre, il peut éliminer un des siens pour régner seul.",
   },
 };
 
@@ -62,10 +77,16 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "cupid", label: "Cupidon", emoji: "💘" });
   if (hasAliveRole("seer"))
     steps.push({ id: "seer", label: "Voyante", emoji: "🔮" });
+  if (hasAliveRole("salvateur"))
+    steps.push({ id: "salvateur", label: "Salvateur", emoji: "🛡️" });
   if (hasAliveWolf)
     steps.push({ id: "wolves", label: "Loups", emoji: "🐺" });
+  if (hasAliveRole("infect_pdl") && !game.infectUsed)
+    steps.push({ id: "infect_pdl", label: "Infect PDL", emoji: "☣️" });
   if (hasAliveRole("witch") && (game.witchPotions?.life || game.witchPotions?.death))
     steps.push({ id: "witch", label: "Sorcière", emoji: "⚗️" });
+  if (hasAliveRole("loup_blanc") && game.phaseNumber >= 2 && game.phaseNumber % 2 === 0)
+    steps.push({ id: "whitewolf", label: "LG Blanc", emoji: "🐺" });
 
   return steps;
 }
@@ -639,6 +660,210 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   );
 }
 
+// ── Étape Salvateur ───────────────────────────────────────────────────────────
+
+function SalvateurStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmSalvatorProtect } = useGame();
+  const [target, setTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [protected_, setProtected] = useState(false);
+
+  const salvateur = game.players.find((p) => p.role === "salvateur" && p.status !== "dead");
+  const lastProtected = game.lastSalvatorTarget ?? null;
+
+  const handleProtect = async () => {
+    if (!target) return;
+    setLoading(true);
+    await gmSalvatorProtect(target);
+    setProtected(true);
+    setLoading(false);
+  };
+
+  if (protected_) {
+    const protectedPlayer = game.players.find((p) => p.id === target);
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}>
+          <p className="text-2xl mb-2">🛡️</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#34d399" }}>
+            {protectedPlayer?.name ?? "?"} est protégé(e) cette nuit
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {lastProtected && (
+        <div className="px-3 py-2 rounded-lg text-[10px] font-mono" style={{ background: "rgba(201,160,48,0.06)", border: "1px solid rgba(201,160,48,0.15)", color: "var(--text-muted)" }}>
+          ⚠️ Ne peut pas reprotéger : {game.players.find((p) => p.id === lastProtected)?.name ?? "?"}
+        </div>
+      )}
+      <PlayerPicker
+        players={game.players}
+        selected={target}
+        onSelect={setTarget}
+        exclude={salvateur ? (lastProtected ? [lastProtected] : []) : []}
+        label="Joueur à protéger cette nuit"
+      />
+      <NightButton onClick={handleProtect} disabled={!target || loading}>
+        {loading ? "Enregistrement..." : "🛡️ Protéger ce joueur"}
+      </NightButton>
+    </div>
+  );
+}
+
+// ── Étape Infect PDL ──────────────────────────────────────────────────────────
+
+function InfectStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmInfectTarget } = useGame();
+  const [decided, setDecided] = useState(false);
+  const [infected, setInfected] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const victimId = game.nightActions?.wolvesTarget;
+  const victim = victimId ? game.players.find((p) => p.id === victimId) : null;
+
+  const handleInfect = async () => {
+    if (!victimId) return;
+    setLoading(true);
+    await gmInfectTarget(victimId);
+    setInfected(true);
+    setDecided(true);
+    setLoading(false);
+  };
+
+  const handlePass = async () => {
+    setLoading(true);
+    await gmInfectTarget(null);
+    setDecided(true);
+    setLoading(false);
+  };
+
+  if (decided) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: infected ? "rgba(139,28,28,0.15)" : "rgba(99,102,241,0.08)",
+          border: `1px solid ${infected ? "rgba(139,28,28,0.4)" : "rgba(99,102,241,0.2)"}`,
+        }}>
+          <p className="text-2xl mb-2">{infected ? "☣️" : "🌙"}</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: infected ? "#f87171" : "#c8c0b0" }}>
+            {infected ? `${victim?.name ?? "?"} sera infecté(e) cette nuit` : "Infection non utilisée ce soir"}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="p-3.5 rounded-xl" style={{ background: "rgba(139,28,28,0.08)", border: "1px solid rgba(139,28,28,0.2)" }}>
+        <p className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: "#f87171" }}>Victime des Loups</p>
+        <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>
+          {victim ? <><span style={{ color: "#f87171", fontWeight: 600 }}>{victim.name}</span> est ciblé(e)</> : "Aucune victime désignée"}
+        </p>
+      </div>
+      {victim ? (
+        <>
+          <p className="text-xs text-center" style={{ fontFamily: "Cinzel, serif", color: "var(--text-muted)" }}>
+            Infecter ou laisser mourir ?
+          </p>
+          <div className="flex gap-2">
+            <button onClick={handleInfect} disabled={loading}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold border transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: "rgba(139,28,28,0.2)", borderColor: "rgba(248,113,113,0.4)", color: "#f87171", fontFamily: "Cinzel, serif" }}>
+              {loading ? "..." : "☣️ Infecter"}
+            </button>
+            <button onClick={handlePass} disabled={loading}
+              className="flex-1 py-3 rounded-xl text-sm border transition-all active:scale-95"
+              style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+              Laisser mourir
+            </button>
+          </div>
+        </>
+      ) : (
+        <NightButton onClick={onDone}>Passer →</NightButton>
+      )}
+    </div>
+  );
+}
+
+// ── Étape LG Blanc ────────────────────────────────────────────────────────────
+
+function WhiteWolfStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmWhitewolfKill } = useGame();
+  const [target, setTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [decided, setDecided] = useState(false);
+
+  const lb = game.players.find((p) => p.role === "loup_blanc" && p.status !== "dead");
+  const wolves = game.players.filter((p) => {
+    if (p.status === "dead") return false;
+    if (p.id === lb?.id) return false;
+    return ROLES_MAP[p.role ?? ""]?.team === "wolves";
+  });
+
+  const handleKill = async (kill: boolean) => {
+    setLoading(true);
+    if (kill && target) await gmWhitewolfKill(target);
+    else await gmWhitewolfKill(null);
+    setDecided(true);
+    setLoading(false);
+  };
+
+  if (decided) {
+    const victim = target ? game.players.find((p) => p.id === target) : null;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: victim ? "rgba(139,28,28,0.15)" : "rgba(99,102,241,0.08)",
+          border: `1px solid ${victim ? "rgba(139,28,28,0.4)" : "rgba(99,102,241,0.2)"}`,
+        }}>
+          <p className="text-2xl mb-2">{victim ? "🩸" : "🌙"}</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: victim ? "#f87171" : "#c8c0b0" }}>
+            {victim ? <><span style={{ color: "#f87171", fontWeight: 600 }}>{victim.name}</span> sera éliminé(e)</> : "Le LG Blanc passe son tour"}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {lb?.name} peut éliminer un loup
+      </p>
+      {wolves.length > 0 ? (
+        <>
+          <PlayerPicker players={wolves} selected={target} onSelect={setTarget} label="Loup à éliminer" />
+          <div className="flex gap-2">
+            <button onClick={() => handleKill(true)} disabled={!target || loading}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold border transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: "rgba(139,28,28,0.2)", borderColor: "rgba(248,113,113,0.4)", color: "#f87171", fontFamily: "Cinzel, serif" }}>
+              {loading ? "..." : "🩸 Éliminer"}
+            </button>
+            <button onClick={() => handleKill(false)} disabled={loading}
+              className="px-4 py-3 rounded-xl text-sm border transition-all active:scale-95"
+              style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+              Passer
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-center py-2" style={{ color: "var(--text-muted)", fontFamily: "Cinzel, serif" }}>Aucun autre loup disponible</p>
+          <NightButton onClick={onDone}>Passer →</NightButton>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Composant principal ────────────────────────────────────────────────────────
 
 export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => void; phaseNumber?: number }) {
@@ -711,6 +936,20 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
               </p>
             </div>
           )}
+
+          {(() => {
+            const whitewolfKillId = game.nightActions?.whitewolfTarget;
+            const whitewolfKillPlayer = whitewolfKillId ? game.players.find((p) => p.id === whitewolfKillId) : null;
+            if (!whitewolfKillPlayer) return null;
+            return (
+              <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(139,28,28,0.1)", border: "1px solid rgba(139,28,28,0.22)" }}>
+                <span className="text-xl">🩸</span>
+                <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+                  <strong style={{ color: "#f87171" }}>{whitewolfKillPlayer.name}</strong> éliminé(e) par le LG Blanc
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         <button
@@ -833,8 +1072,11 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
       <div>
         {currentStep.id === "cupid" && <CupidStep game={game} onDone={advance} />}
         {currentStep.id === "seer" && <SeerStep game={game} onDone={advance} />}
+        {currentStep.id === "salvateur" && <SalvateurStep game={game} onDone={advance} />}
         {currentStep.id === "wolves" && <WolvesStep game={game} onDone={advance} />}
+        {currentStep.id === "infect_pdl" && <InfectStep game={game} onDone={advance} />}
         {currentStep.id === "witch" && <WitchStep game={game} onDone={advance} />}
+        {currentStep.id === "whitewolf" && <WhiteWolfStep game={game} onDone={advance} />}
       </div>
     </div>
   );

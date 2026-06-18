@@ -61,13 +61,15 @@ export interface GameState {
   phase: GamePhase;
   phaseNumber: number;
   status: "waiting" | "running" | "finished";
-  winner?: "wolves" | "village" | "draw" | "angel" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | null;
   players: Player[];
   selectedRoles: RoleConfig[];
   history: HistoryEvent[];
   witchPotions: { life: boolean; death: boolean };
   cupidLovers: string[];
-  nightActions: { wolvesTarget: string | null; witchSaved: boolean; witchKillTarget: string | null };
+  nightActions: { wolvesTarget: string | null; witchSaved: boolean; witchKillTarget: string | null; salvatorTarget?: string | null; whitewolfTarget?: string | null; infectTarget?: string | null };
+  infectUsed?: boolean;
+  lastSalvatorTarget?: string | null;
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId
@@ -82,7 +84,7 @@ export interface PlayerView {
   gameName: string;
   phase: GamePhase;
   phaseNumber: number;
-  winner?: "wolves" | "village" | "draw" | "angel" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | null;
   player: {
     id: string;
     name: string;
