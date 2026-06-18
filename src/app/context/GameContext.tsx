@@ -354,19 +354,43 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const gmResolveVote = async (winnerId: string | null): Promise<void> => {
-    console.log("[Vote] résolution — gagnant:", winnerId ?? "aucun");
     await _update((g) => {
       if (g.phase !== "vote") return g;
+
+      // Égalité — Bouc Émissaire prend la place si vivant
       if (!winnerId) {
-        console.log("[Vote] passage à la nuit sans élimination");
+        const bouc = g.players.find((p) => p.role === "bouc_emissaire" && p.status !== "dead");
+        if (bouc) {
+          const withEvent = addHistoryEvent(g, `🐐 ${bouc.name} (Bouc Émissaire) est sacrifié à la place — demain, tout le monde doit voter`, "vote");
+          const afterElim = eliminatePlayer(withEvent, bouc.id, "vote");
+          if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
+          return nextPhase(afterElim);
+        }
         return nextPhase(g);
       }
-      const afterElim = eliminatePlayer(g, winnerId, "vote");
-      // Ne pas avancer si la partie est terminée ou si le Chasseur doit tirer
-      if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) {
-        console.log("[Vote] jeu terminé ou Chasseur en attente");
-        return afterElim;
+
+      const target = g.players.find((p) => p.id === winnerId);
+
+      // Ange — victoire solo si premier vote (phaseNumber === 1)
+      if (target?.role === "ange" && g.phaseNumber === 1) {
+        const withEvent = addHistoryEvent(g, `😇 ${target.name} (Ange) est éliminé au premier vote et gagne seul !`, "vote");
+        return { ...withEvent, status: "finished" as const, winner: "angel" as const, phase: "end" as const };
       }
+
+      // Idiot du Village — survit la première fois, perd son droit de vote
+      if (target?.role === "idiot_village" && target.hasVotingRight !== false) {
+        const withEvent = addHistoryEvent(g, `🤡 ${target.name} (Idiot du Village) révèle son identité et survit — il perd son droit de vote`, "vote");
+        const updated = {
+          ...withEvent,
+          players: withEvent.players.map((p) => p.id === winnerId ? { ...p, hasVotingRight: false } : p),
+          votesByPlayer: {} as Record<string, string>,
+        };
+        return nextPhase(updated);
+      }
+
+      // Cas normal
+      const afterElim = eliminatePlayer(g, winnerId, "vote");
+      if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
       return nextPhase(afterElim);
     });
   };
@@ -558,6 +582,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const voter = current.players.find((p) => p.id === voterId);
     if (!voter || voter.status === "dead") return; // un mort ne vote pas
+    if (voter.hasVotingRight === false) return; // Idiot du Village sans droit de vote
 
     const newVotesByPlayer = { ...(current.votesByPlayer ?? {}), [voterId]: targetId };
     const capitaineId = current.players.find((p) => p.isCapitaine)?.id;

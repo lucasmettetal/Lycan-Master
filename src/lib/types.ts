@@ -35,6 +35,7 @@ export interface Player {
   isConnected: boolean;
   isCapitaine: boolean;
   votes: number;
+  hasVotingRight?: boolean;
   lastSeenAt: string | null;
 }
 
@@ -60,7 +61,7 @@ export interface GameState {
   phase: GamePhase;
   phaseNumber: number;
   status: "waiting" | "running" | "finished";
-  winner?: "wolves" | "village" | "draw" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | null;
   players: Player[];
   selectedRoles: RoleConfig[];
   history: HistoryEvent[];
@@ -79,7 +80,7 @@ export interface PlayerView {
   gameName: string;
   phase: GamePhase;
   phaseNumber: number;
-  winner?: "wolves" | "village" | "draw" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | null;
   player: {
     id: string;
     name: string;

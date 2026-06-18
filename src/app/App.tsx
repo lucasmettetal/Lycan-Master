@@ -992,20 +992,22 @@ function DashboardScreen() {
         )}
 
         {/* Bannière de victoire */}
-        {phase === "end" && game.winner && (
-          <div className="px-5 pt-5 pb-0">
-            <div className="p-5 rounded-2xl text-center" style={{
-              background: game.winner === "wolves" ? "rgba(139,28,28,0.35)" : "rgba(16,185,129,0.15)",
-              border: `1px solid ${game.winner === "wolves" ? "rgba(139,28,28,0.6)" : "rgba(16,185,129,0.4)"}`,
-              boxShadow: game.winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : "0 0 30px rgba(16,185,129,0.1)",
-            }}>
-              <p className="text-3xl mb-2">{game.winner === "wolves" ? "🐺" : "🏡"}</p>
-              <p className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: game.winner === "wolves" ? "#f87171" : "#34d399" }}>
-                {game.winner === "wolves" ? "Les Loups-Garous ont gagné !" : "Le Village a gagné !"}
-              </p>
+        {phase === "end" && game.winner && (() => {
+          const w = game.winner;
+          const bg = w === "wolves" ? "rgba(139,28,28,0.35)" : w === "angel" ? "rgba(168,85,247,0.2)" : "rgba(16,185,129,0.15)";
+          const border = w === "wolves" ? "rgba(139,28,28,0.6)" : w === "angel" ? "rgba(168,85,247,0.5)" : "rgba(16,185,129,0.4)";
+          const color = w === "wolves" ? "#f87171" : w === "angel" ? "#c084fc" : "#34d399";
+          const emoji = w === "wolves" ? "🐺" : w === "angel" ? "😇" : "🏡";
+          const label = w === "wolves" ? "Les Loups-Garous ont gagné !" : w === "angel" ? "L'Ange a gagné seul !" : "Le Village a gagné !";
+          return (
+            <div className="px-5 pt-5 pb-0">
+              <div className="p-5 rounded-2xl text-center" style={{ background: bg, border: `1px solid ${border}`, boxShadow: `0 0 30px ${border.replace("0.6", "0.2").replace("0.5", "0.15").replace("0.4", "0.1")}` }}>
+                <p className="text-3xl mb-2">{emoji}</p>
+                <p className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color }}>{label}</p>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* En-tête de phase */}
         <div className="px-5 pt-5 pb-4 rounded-b-2xl" style={{ background: phaseInfo.headerBg, backdropFilter: "blur(8px)" }}>
@@ -1082,6 +1084,7 @@ function DashboardScreen() {
                     <div className="flex items-center gap-1.5 mb-1">
                       <p className="text-sm font-semibold truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
                       {isLover && <span className="text-xs flex-shrink-0">💘</span>}
+                      {p.hasVotingRight === false && <span className="text-[8px] font-mono px-1 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(168,85,247,0.1)", color: "rgba(192,132,252,0.7)", border: "1px solid rgba(168,85,247,0.15)" }}>🤡 sans vote</span>}
                     </div>
                     <div className="flex items-center gap-1.5">
                       {roleInfo ? (
@@ -1544,13 +1547,13 @@ function PlayerViewScreen() {
         {phase === "end" && winner && (
           <>
             <div className="mx-5 mt-4 p-5 rounded-2xl text-center" style={{
-              background: winner === "wolves" ? "rgba(139,28,28,0.35)" : "rgba(16,185,129,0.15)",
-              border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : "rgba(16,185,129,0.4)"}`,
-              boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : "0 0 30px rgba(16,185,129,0.1)",
+              background: winner === "wolves" ? "rgba(139,28,28,0.35)" : winner === "angel" ? "rgba(168,85,247,0.2)" : "rgba(16,185,129,0.15)",
+              border: `1px solid ${winner === "wolves" ? "rgba(139,28,28,0.6)" : winner === "angel" ? "rgba(168,85,247,0.5)" : "rgba(16,185,129,0.4)"}`,
+              boxShadow: winner === "wolves" ? "0 0 30px rgba(139,28,28,0.2)" : winner === "angel" ? "0 0 30px rgba(168,85,247,0.15)" : "0 0 30px rgba(16,185,129,0.1)",
             }}>
-              <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : "🏡"}</p>
-              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : "#34d399" }}>
-                {winner === "wolves" ? "Les Loups ont gagné !" : "Le Village a gagné !"}
+              <p className="text-3xl mb-2">{winner === "wolves" ? "🐺" : winner === "angel" ? "😇" : "🏡"}</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: winner === "wolves" ? "#f87171" : winner === "angel" ? "#c084fc" : "#34d399" }}>
+                {winner === "wolves" ? "Les Loups ont gagné !" : winner === "angel" ? "L'Ange a gagné seul !" : "Le Village a gagné !"}
               </p>
             </div>
 
@@ -1617,8 +1620,17 @@ function PlayerViewScreen() {
           <p className="text-sm leading-relaxed" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{instruction}</p>
         </div>
 
+        {/* Idiot du Village sans droit de vote */}
+        {phase === "vote" && state.game?.players.find((p) => p.id === player.id)?.hasVotingRight === false && (
+          <div className="mx-5 mt-4 p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+            <p className="text-2xl mb-1">🤡</p>
+            <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-title)", color: "rgba(192,132,252,0.8)" }}>Tu n'as plus le droit de vote</p>
+            <p className="text-[10px] mt-1" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Le village t'a épargné, mais ta voix ne compte plus.</p>
+          </div>
+        )}
+
         {/* Zone de vote */}
-        {phase === "vote" && player.status !== "dead" && currentVotes.length > 0 && (
+        {phase === "vote" && player.status !== "dead" && currentVotes.length > 0 && state.game?.players.find((p) => p.id === player.id)?.hasVotingRight !== false && (
           <div className="mx-5 mt-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
