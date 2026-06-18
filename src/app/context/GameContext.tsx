@@ -149,6 +149,9 @@ interface GameContextValue {
   playerJoin: (gameId: string, name: string) => Promise<void>;
   playerVote: (targetId: string) => Promise<void>;
   playerResolveAction: (actionId: string, payload: Record<string, unknown>) => Promise<void>;
+  corbeauSetTarget: (targetId: string) => Promise<void>;
+  chienLoupChoose: (choice: "wolves" | "village") => Promise<void>;
+  gmTransferRole: (fromPlayerId: string, toPlayerId: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -342,11 +345,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const gmNextPhase = async () => {
     await _update((g) => {
       const next = nextPhase(g);
+      if (next.phase === "night") {
+        return { ...next, corbeauTarget: null };
+      }
       if (next.phase === "vote") {
         return {
           ...next,
           votesByPlayer: {},
-          players: next.players.map((p) => ({ ...p, votes: 0 })),
+          players: next.players.map((p) => ({
+            ...p,
+            votes: next.corbeauTarget === p.id ? 2 : 0,
+          })),
         };
       }
       return next;
@@ -586,11 +595,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const newVotesByPlayer = { ...(current.votesByPlayer ?? {}), [voterId]: targetId };
     const capitaineId = current.players.find((p) => p.isCapitaine)?.id;
+    const corbeauTarget = current.corbeauTarget ?? null;
     const players = current.players.map((p) => ({
       ...p,
       votes: Object.entries(newVotesByPlayer)
         .filter(([, tid]) => tid === p.id)
-        .reduce((sum, [vid]) => sum + (vid === capitaineId ? 2 : 1), 0),
+        .reduce((sum, [vid]) => sum + (vid === capitaineId ? 2 : 1), 0)
+        + (corbeauTarget === p.id ? 2 : 0),
     }));
     const newState = { ...current, votesByPlayer: newVotesByPlayer, players };
     gameRef.current = newState;
@@ -650,6 +661,45 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await updateSessionState(gameIdRef.current, newState);
   };
 
+  // ── Corbeau : désigner une cible (+ 2 votes) ──────────────────────────────────
+  const corbeauSetTarget = async (targetId: string) => {
+    await _update((g) => ({ ...g, corbeauTarget: targetId }));
+  };
+
+  // ── Chien-Loup : choisir son camp ─────────────────────────────────────────────
+  const chienLoupChoose = async (choice: "wolves" | "village") => {
+    const playerId = playerIdRef.current;
+    if (!playerId) return;
+    await _update((g) => {
+      const chienLoupChoice = { ...(g.chienLoupChoice ?? {}), [playerId]: choice };
+      const players = g.players.map((p) =>
+        p.id === playerId
+          ? { ...p, role: choice === "wolves" ? "werewolf" : p.role }
+          : p
+      );
+      return { ...g, players, chienLoupChoice };
+    });
+  };
+
+  // ── Servante Dévouée : transférer le rôle d'un mort ────────────────────────────
+  const gmTransferRole = async (fromPlayerId: string, toPlayerId: string) => {
+    await _update((g) => {
+      const from = g.players.find((p) => p.id === fromPlayerId);
+      if (!from) return g;
+      const withEvent = addHistoryEvent(
+        g,
+        `🧹 La Servante Dévouée récupère secrètement la carte de ${from.name}`,
+        "power"
+      );
+      return {
+        ...withEvent,
+        players: withEvent.players.map((p) =>
+          p.id === toPlayerId ? { ...p, role: from.role } : p
+        ),
+      };
+    });
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -665,6 +715,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmCupidLink, gmResolveNight,
         gmCreatePlayerAction, gmCancelPlayerAction,
         playerJoin, playerVote, playerResolveAction,
+        corbeauSetTarget, chienLoupChoose, gmTransferRole,
       }}
     >
       {children}

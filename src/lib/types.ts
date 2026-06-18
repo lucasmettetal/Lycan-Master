@@ -71,6 +71,8 @@ export interface GameState {
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId
+  corbeauTarget?: string | null;
+  chienLoupChoice?: Record<string, "wolves" | "village">; // playerId → choice
   phaseTimer: { duration: number; remaining: number; startedAt: number | null; running: boolean };
   createdAt: string;
 }

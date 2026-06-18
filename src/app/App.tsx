@@ -833,11 +833,12 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
 // ── Écran : Tableau de bord MJ ────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError } = useGame();
+  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole } = useGame();
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
   const [successionDismissed, setSuccessionDismissed] = useState<string | null>(null);
+  const [servanteModal, setServanteModal] = useState(false);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -863,6 +864,10 @@ function DashboardScreen() {
     for (const [voterId, targetId] of Object.entries(game.votesByPlayer ?? {})) {
       if (!aliveIds.has(voterId)) continue;
       counts[targetId] = (counts[targetId] ?? 0) + (voterId === capitaineId ? 2 : 1);
+    }
+    // Corbeau : +2 votes sur la cible désignée
+    if (game.corbeauTarget) {
+      counts[game.corbeauTarget] = (counts[game.corbeauTarget] ?? 0) + 2;
     }
     const entries = Object.entries(counts);
     if (entries.length === 0) return { type: "no_votes" as const };
@@ -962,6 +967,80 @@ function DashboardScreen() {
                 </p>
               </div>
             </div>
+          );
+        })()}
+
+        {/* Indicateur Corbeau (phase day) */}
+        {phase === "day" && game.players.some(p => p.role === "corbeau" && p.status !== "dead") && (
+          <div className="mx-5 mt-3 p-3 rounded-xl flex items-center gap-3" style={{ background: "rgba(11,10,15,0.6)", border: `1px solid ${game.corbeauTarget ? "rgba(201,160,48,0.25)" : "rgba(168,85,247,0.25)"}` }}>
+            <span style={{ fontSize: 18 }}>🐦‍⬛</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: game.corbeauTarget ? "var(--gold)" : "rgba(192,132,252,0.8)" }}>Corbeau</p>
+              <p className="text-xs" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                {game.corbeauTarget
+                  ? `Accusation posée sur : ${game.players.find(p => p.id === game.corbeauTarget)?.name ?? "?"} (+2 votes)`
+                  : "En attente de l'accusation du Corbeau…"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Bouton Servante Dévouée (phase day) */}
+        {phase === "day" && (() => {
+          const servante = game.players.find(p => p.role === "servante_devouee" && p.status !== "dead");
+          const deadWithRoles = game.players.filter(p => p.status === "dead" && p.role && p.role !== "servante_devouee");
+          if (!servante || deadWithRoles.length === 0) return null;
+          return (
+            <>
+              <div className="mx-5 mt-3">
+                <button
+                  onClick={() => setServanteModal(true)}
+                  className="w-full px-3 py-2.5 rounded-xl text-left flex items-center gap-3 transition-all active:scale-[0.99] border"
+                  style={{ background: "rgba(11,10,15,0.6)", borderColor: "rgba(168,85,247,0.25)" }}
+                >
+                  <span style={{ fontSize: 16 }}>🧹</span>
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "rgba(192,132,252,0.8)" }}>Servante Dévouée</p>
+                    <p className="text-xs" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                      {servante.name} peut récupérer la carte d'un joueur éliminé
+                    </p>
+                  </div>
+                </button>
+              </div>
+              {servanteModal && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center px-5" style={{ background: "rgba(11,10,15,0.92)", backdropFilter: "blur(6px)" }}>
+                  <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: "rgba(20,16,28,0.98)", border: "1px solid rgba(168,85,247,0.3)" }}>
+                    <div className="px-5 pt-5 pb-3 text-center" style={{ borderBottom: "1px solid rgba(168,85,247,0.1)" }}>
+                      <p className="text-2xl mb-2">🧹</p>
+                      <h3 className="text-base font-bold" style={{ fontFamily: "var(--font-display)", color: "rgba(192,132,252,0.9)" }}>Servante Dévouée</h3>
+                      <p className="text-xs mt-1" style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>
+                        {servante.name} récupère secrètement la carte de…
+                      </p>
+                    </div>
+                    <div className="p-4 flex flex-col gap-2">
+                      {deadWithRoles.map(p => {
+                        const rd = ROLES_MAP[p.role ?? ""];
+                        return (
+                          <button key={p.id}
+                            onClick={async () => { await gmTransferRole(p.id, servante.id); setServanteModal(false); }}
+                            className="flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] border"
+                            style={{ background: "rgba(11,10,15,0.7)", borderColor: "rgba(168,85,247,0.15)" }}>
+                            <span style={{ fontSize: 20 }}>{rd?.emoji ?? "❓"}</span>
+                            <div>
+                              <p className="text-sm font-medium" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
+                              <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{rd?.name ?? p.role}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      <button onClick={() => setServanteModal(false)} className="mt-1 py-2 rounded-xl text-xs font-mono border" style={{ borderColor: "var(--gold-subtle)", color: "var(--text-muted)" }}>
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           );
         })()}
 
@@ -1258,7 +1337,7 @@ function DashboardScreen() {
 // ── Écran : Vue Joueur ────────────────────────────────────────────────────────
 
 function PlayerViewScreen() {
-  const { navigate, state, playerVote } = useGame();
+  const { navigate, state, playerVote, corbeauSetTarget, chienLoupChoose } = useGame();
   const pv = state.playerView;
   const [myVote, setMyVote] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
@@ -1633,6 +1712,63 @@ function PlayerViewScreen() {
               </div>
             )}
           </>
+        )}
+
+        {/* Chien-Loup : choix de camp (phase waiting) */}
+        {player.role === "chien_loup" && phase === "waiting" && !state.game?.chienLoupChoice?.[player.id] && (
+          <div className="mx-5 mt-4 p-4 rounded-xl" style={{ background: "rgba(11,10,15,0.65)", border: "1px solid rgba(168,85,247,0.3)" }}>
+            <p className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: "rgba(192,132,252,0.9)" }}>🐕 Choisis ton camp</p>
+            <p className="text-xs mb-4" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+              Cette décision est définitive et secrète. Personne d'autre ne verra ton choix.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => chienLoupChoose("wolves")}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 border"
+                style={{ background: "rgba(139,28,28,0.3)", borderColor: "rgba(139,28,28,0.6)", color: "#f87171", fontFamily: "var(--font-title)" }}>
+                🐺 Loups
+              </button>
+              <button onClick={() => chienLoupChoose("village")}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 border"
+                style={{ background: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.35)", color: "#34d399", fontFamily: "var(--font-title)" }}>
+                🏡 Village
+              </button>
+            </div>
+          </div>
+        )}
+        {player.role === "chien_loup" && phase === "waiting" && state.game?.chienLoupChoice?.[player.id] && (
+          <div className="mx-5 mt-4 p-3 rounded-xl text-center" style={{ background: "rgba(11,10,15,0.5)", border: "1px solid rgba(168,85,247,0.15)" }}>
+            <p className="text-xs" style={{ fontFamily: "var(--font-mono)", color: "rgba(192,132,252,0.6)" }}>
+              Camp choisi : {state.game.chienLoupChoice[player.id] === "wolves" ? "🐺 Loups" : "🏡 Village"}
+            </p>
+          </div>
+        )}
+
+        {/* Corbeau : choix de cible (phase day) */}
+        {player.role === "corbeau" && phase === "day" && player.status !== "dead" && (
+          <div className="mx-5 mt-4 p-4 rounded-xl" style={{ background: "rgba(11,10,15,0.65)", border: "1px solid rgba(168,85,247,0.25)" }}>
+            <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(192,132,252,0.9)" }}>🐦‍⬛ Affiche d'accusation</p>
+            {state.game?.corbeauTarget ? (
+              <p className="text-xs mt-1" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                ✓ Accusation posée sur {state.game.players.find(p => p.id === state.game!.corbeauTarget)?.name ?? "?"}
+              </p>
+            ) : (
+              <>
+                <p className="text-xs mb-3" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                  Désigne secrètement un joueur — il recevra +2 votes ce jour.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {(state.game?.players ?? []).filter(p => p.status !== "dead" && p.id !== player.id).map(target => (
+                    <button key={target.id}
+                      onClick={() => corbeauSetTarget(target.id)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all active:scale-[0.98] border"
+                      style={{ background: "rgba(11,10,15,0.6)", borderColor: "rgba(168,85,247,0.12)" }}>
+                      <p className="text-sm font-medium" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{target.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         {/* Consigne actuelle */}
