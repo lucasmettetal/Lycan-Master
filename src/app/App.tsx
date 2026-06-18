@@ -944,6 +944,27 @@ function DashboardScreen() {
         {/* Modal Chasseur — bloque l'interface jusqu'au tir */}
         {game.pendingHunterActions?.length > 0 && <HunterModal game={game} />}
 
+        {/* Rappel Chevalier à l'Épée Rouillée — mort la nuit précédente */}
+        {phase === "night" && (() => {
+          const chevalier = game.players.find(p => p.role === "chevalier" && p.status === "dead");
+          if (!chevalier) return null;
+          const diedLastNight = game.history.some(
+            e => e.type === "power" && e.text.includes(chevalier.name) && e.phase === `Nuit ${game.phaseNumber - 1}`
+          );
+          if (!diedLastNight) return null;
+          return (
+            <div className="mx-5 mt-3 p-3 rounded-xl flex items-center gap-3" style={{ background: "rgba(201,160,48,0.08)", border: "1px solid rgba(201,160,48,0.25)" }}>
+              <span style={{ fontSize: 18 }}>⚔️</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--gold)" }}>Chevalier à l'Épée Rouillée</p>
+                <p className="text-xs" style={{ fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
+                  {chevalier.name} est mort hier nuit — le premier loup à sa gauche doit mourir cette nuit.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Modal Succession du Capitaine */}
         {(() => {
           const deadCap = game.players.find(p => p.isCapitaine && p.status === "dead");
