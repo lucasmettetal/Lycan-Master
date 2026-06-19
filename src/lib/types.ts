@@ -7,7 +7,8 @@ export type PlayerActionType =
   | "cupid_choose_lovers"
   | "witch_choose_potions"
   | "hunter_choose_target"
-  | "day_vote";
+  | "day_vote"
+  | "flute_enchant";
 
 export interface PlayerAction {
   id: string;

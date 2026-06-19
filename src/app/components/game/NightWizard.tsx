@@ -1223,10 +1223,11 @@ function PyromaneStep({ game, onDone }: { game: GameState; onDone: () => void })
 // ── Étape Joueur de Flûte ─────────────────────────────────────────────────────
 
 function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void }) {
-  const { gmFluteEnchant } = useGame();
+  const { gmFluteEnchant, gmCreatePlayerAction, gmCancelPlayerAction } = useGame();
+  const [mode, setMode] = useState<StepMode>("manual");
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
 
   const flute = game.players.find((p) => p.role === "joueur_flute" && p.status !== "dead");
   const enchanted = game.enchanted ?? [];
@@ -1234,6 +1235,45 @@ function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void
     (p) => p.status !== "dead" && p.id !== flute?.id && !enchanted.includes(p.id)
   );
   const maxSelect = Math.min(2, available.length);
+
+  useEffect(() => {
+    if (mode !== "waiting" || !pendingActionId) return;
+    const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
+    if (action?.status === "resolved" && action.result) {
+      const playerIds = ((action.result as { playerIds?: string[] }).playerIds ?? []);
+      gmFluteEnchant(playerIds).then(() => {
+        setPendingActionId(null);
+        setSelected(playerIds);
+        setMode("done");
+      });
+    }
+  }, [game, mode, pendingActionId]);
+
+  const handleDelegate = async () => {
+    if (!flute) return;
+    setLoading(true);
+    try {
+      const actionId = await gmCreatePlayerAction({
+        playerId: flute.id,
+        type: "flute_enchant",
+        title: "Ensorceler des joueurs",
+        description: `Choisis jusqu'à 2 joueurs à ensorceler cette nuit.`,
+        targets: available.map((p) => p.id),
+        minTargets: 1,
+        maxTargets: 2,
+        context: null,
+      });
+      setPendingActionId(actionId);
+      setMode("waiting");
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const handleOverride = async () => {
+    if (pendingActionId) await gmCancelPlayerAction(pendingActionId);
+    setPendingActionId(null);
+    setMode("manual");
+  };
 
   const toggleSelect = (id: string) => {
     setSelected((prev) =>
@@ -1244,25 +1284,36 @@ function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void
   const handleEnchant = async () => {
     setLoading(true);
     await gmFluteEnchant(selected);
-    setDone(true);
+    setMode("done");
     setLoading(false);
   };
 
-  if (done) {
+  if (mode === "done") {
     return (
       <div className="flex flex-col gap-3">
         <div className="p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)" }}>
           <p className="text-2xl mb-2">🎵</p>
           <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#c084fc" }}>
-            {selected.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(" & ")} ensorcelé(e)(s)
+            {selected.length > 0
+              ? selected.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(" & ") + " ensorcelé(e)(s)"
+              : "Envoûtement confirmé"}
           </p>
           <p className="text-[10px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>
-            Total ensorcelés : {(enchanted.length + selected.filter((id) => !enchanted.includes(id)).length)}/{game.players.filter((p) => p.status !== "dead" && p.id !== flute?.id).length}
+            Total ensorcelés : {(game.enchanted ?? []).length}/{game.players.filter((p) => p.status !== "dead" && p.id !== flute?.id).length}
           </p>
         </div>
         <NightButton onClick={onDone}>Suivant →</NightButton>
       </div>
     );
+  }
+
+  if (mode === "waiting") {
+    return <WaitingForPlayer
+      playerName={flute?.name}
+      isConnected={flute?.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
+      onOverride={handleOverride}
+    />;
   }
 
   return (
@@ -1310,6 +1361,13 @@ function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void
       <NightButton onClick={handleEnchant} disabled={selected.length === 0 || loading}>
         {loading ? "Envoûtement..." : "🎵 Ensorceler"}
       </NightButton>
+      {flute?.isConnected && available.length > 0 && (
+        <button onClick={handleDelegate} disabled={loading}
+          className="w-full py-2 rounded-xl text-[11px] border transition-all"
+          style={{ borderColor: "rgba(168,85,247,0.25)", color: "rgba(192,132,252,0.6)", fontFamily: "Cinzel, serif" }}>
+          📱 Déléguer au Joueur de Flûte
+        </button>
+      )}
     </div>
   );
 }

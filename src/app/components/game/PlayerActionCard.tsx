@@ -90,6 +90,7 @@ export function PlayerActionCard({
     witch_choose_potions: "#10b981",
     hunter_choose_target: "#f97316",
     day_vote: "#c9a030",
+    flute_enchant: "#c084fc",
   }[action.type] ?? "#c9a030";
 
   const toggle = (id: string) => {
@@ -106,6 +107,7 @@ export function PlayerActionCard({
       case "witch_choose_potions": return true; // peut ne rien faire
       case "hunter_choose_target": return selected.length === 1;
       case "day_vote": return selected.length === 1;
+      case "flute_enchant": return selected.length >= 1;
       default: return false;
     }
   };
@@ -120,6 +122,7 @@ export function PlayerActionCard({
       };
       case "hunter_choose_target": return { targetId: selected[0] };
       case "day_vote": return { targetId: selected[0] };
+      case "flute_enchant": return { playerIds: selected };
       default: return {};
     }
   };
@@ -174,7 +177,7 @@ export function PlayerActionCard({
           className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5"
           style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}
         >
-          {{ seer_choose_target: "🔮", cupid_choose_lovers: "💘", witch_choose_potions: "⚗️", hunter_choose_target: "🏹", day_vote: "🗳️" }[action.type]}
+          {{ seer_choose_target: "🔮", cupid_choose_lovers: "💘", witch_choose_potions: "⚗️", hunter_choose_target: "🏹", day_vote: "🗳️", flute_enchant: "🎵" }[action.type]}
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>
@@ -299,6 +302,19 @@ export function PlayerActionCard({
           onToggle={toggle}
           max={1}
           label="Voter contre"
+        />
+      )}
+
+      {action.type === "flute_enchant" && (
+        <TargetPicker
+          targets={action.targets}
+          allPlayers={allPlayers}
+          selected={selected}
+          onToggle={(id) => setSelected((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 2 ? [...prev, id] : prev
+          )}
+          max={2}
+          label={`Ensorceler jusqu'à 2 joueurs (${selected.length}/2)`}
         />
       )}
 

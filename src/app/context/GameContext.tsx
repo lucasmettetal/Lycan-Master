@@ -968,6 +968,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (typeof payload.lover1Id === "string" && typeof payload.lover2Id === "string") {
         newState = cupidLink(newState, payload.lover1Id, payload.lover2Id);
       }
+    } else if (action?.type === "flute_enchant") {
+      const ids = Array.isArray(payload.playerIds) ? (payload.playerIds as string[]) : [];
+      if (ids.length > 0) {
+        const newEnchanted = [...new Set([...(newState.enchanted ?? []), ...ids])];
+        const names = ids.map((id) => newState.players.find((p) => p.id === id)?.name ?? "?").join(" & ");
+        newState = addHistoryEvent({ ...newState, enchanted: newEnchanted }, `🎵 ${names} ${ids.length > 1 ? "sont ensorcelés" : "est ensorcelé(e)"}`, "power");
+      }
     }
 
     gameRef.current = newState;
