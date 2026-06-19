@@ -70,6 +70,9 @@ export interface GameState {
   nightActions: { wolvesTarget: string | null; witchSaved: boolean; witchKillTarget: string | null; salvatorTarget?: string | null; whitewolfTarget?: string | null; infectTarget?: string | null };
   infectUsed?: boolean;
   lastSalvatorTarget?: string | null;
+  sectaireTeam?: "wolves" | "village";
+  wildChildModel?: string | null;
+  judgePowerUsed?: boolean;
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId

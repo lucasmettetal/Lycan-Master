@@ -28,6 +28,19 @@ import {
 import { createPlayerAction, resolvePlayerAction, cancelPlayerAction } from "../../lib/playerActions";
 import { ROLES_MAP } from "../../lib/roles";
 import { createId } from "../../lib/id";
+import type { GameState as GameStateType } from "../../lib/types";
+
+// ── Helper Enfant Sauvage ─────────────────────────────────────────────────────
+// Appelé après chaque mort : si le modèle de l'Enfant Sauvage est mort, il bascule loup
+function applyWildChild(g: GameStateType): GameStateType {
+  if (!g.wildChildModel) return g;
+  const child = g.players.find((p) => p.role === "enfant_sauvage" && p.status !== "dead");
+  if (!child) return g;
+  const model = g.players.find((p) => p.id === g.wildChildModel);
+  if (!model || model.status !== "dead") return g;
+  const updated = addHistoryEvent(g, `🐺 ${child.name} (Enfant Sauvage) a perdu son modèle — il rejoint les loups !`, "power");
+  return { ...updated, wildChildModel: null, players: updated.players.map((p) => p.id === child.id ? { ...p, role: "werewolf" } : p) };
+}
 
 // Re-export all shared types for backward compatibility with existing components
 export type {
@@ -157,6 +170,9 @@ interface GameContextValue {
   gmSalvatorProtect: (targetId: string) => Promise<void>;
   gmWhitewolfKill: (targetId: string | null) => Promise<void>;
   gmInfectTarget: (targetId: string | null) => Promise<void>;
+  gmWildChildSetModel: (modelId: string) => Promise<void>;
+  gmSectaireChoose: (choice: "wolves" | "village") => Promise<void>;
+  gmJudgeTrigger: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -376,7 +392,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const bouc = g.players.find((p) => p.role === "bouc_emissaire" && p.status !== "dead");
         if (bouc) {
           const withEvent = addHistoryEvent(g, `🐐 ${bouc.name} (Bouc Émissaire) est sacrifié à la place — demain, tout le monde doit voter`, "vote");
-          const afterElim = eliminatePlayer(withEvent, bouc.id, "vote");
+          let afterElim = eliminatePlayer(withEvent, bouc.id, "vote");
+          afterElim = applyWildChild(afterElim);
+          if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
           if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
           return nextPhase(afterElim);
         }
@@ -403,14 +421,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Cas normal
-      const afterElim = eliminatePlayer(g, winnerId, "vote");
+      let afterElim = eliminatePlayer(g, winnerId, "vote");
+      afterElim = applyWildChild(afterElim);
+      if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
       if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
       return nextPhase(afterElim);
     });
   };
 
   const gmEliminate = async (playerId: string, reason = "vote") => {
-    await _update((g) => eliminatePlayer(g, playerId, reason));
+    await _update((g) => {
+      let result = eliminatePlayer(g, playerId, reason);
+      result = applyWildChild(result);
+      if (result.status === "running") result = checkWinCondition(result);
+      return result;
+    });
   };
 
   const gmSetCaptain = async (playerId: string) => {
@@ -428,7 +453,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // ── GM: Chasseur ─────────────────────────────────────────────────────────────
 
   const gmHunterShoot = async (hunterId: string, targetId: string) => {
-    await _update((g) => hunterShoot(g, hunterId, targetId));
+    await _update((g) => {
+      let result = hunterShoot(g, hunterId, targetId);
+      result = applyWildChild(result);
+      if (result.status === "running") result = checkWinCondition(result);
+      return result;
+    });
   };
 
   // ── GM: Timer ─────────────────────────────────────────────────────────────────
@@ -546,7 +576,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 5. Loup-Garou Blanc — victoire solitaire si dernier survivant
+      // 5. Enfant Sauvage — conversion si modèle mort cette nuit
+      if (result.status === "running") {
+        result = applyWildChild(result);
+        if (result.status === "running") result = checkWinCondition(result);
+      }
+
+      // 6. Loup-Garou Blanc — victoire solitaire si dernier survivant
       if (result.status === "running") {
         const alive = result.players.filter((p) => p.status !== "dead");
         const lb = alive.find((p) => p.role === "loup_blanc");
@@ -564,6 +600,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
 
       return result;
+    });
+  };
+
+  const gmWildChildSetModel = async (modelId: string) => {
+    await _update((g) => ({ ...g, wildChildModel: modelId }));
+  };
+
+  const gmSectaireChoose = async (choice: "wolves" | "village") => {
+    await _update((g) => {
+      const sectaire = g.players.find((p) => p.role === "sectaire" && p.status !== "dead");
+      if (!sectaire) return { ...g, sectaireTeam: choice };
+      const players = choice === "wolves"
+        ? g.players.map((p) => p.id === sectaire.id ? { ...p, role: "werewolf" } : p)
+        : g.players;
+      return { ...g, sectaireTeam: choice, players };
+    });
+  };
+
+  const gmJudgeTrigger = async () => {
+    await _update((g) => {
+      if (g.phase !== "vote" || g.judgePowerUsed) return g;
+      const juge = g.players.find((p) => p.role === "juge_begue" && p.status !== "dead");
+      if (!juge) return g;
+      const withEvent = addHistoryEvent(g, `⚖️ ${juge.name} (Juge Bègue) décrète un second vote !`, "vote");
+      const corbeauTarget = withEvent.corbeauTarget ?? null;
+      return {
+        ...withEvent,
+        judgePowerUsed: true,
+        votesByPlayer: {},
+        players: withEvent.players.map((p) => ({
+          ...p,
+          votes: corbeauTarget === p.id ? 2 : 0,
+        })),
+      };
     });
   };
 
@@ -797,6 +867,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         playerJoin, playerVote, playerResolveAction,
         corbeauSetTarget, chienLoupChoose, gmTransferRole,
         gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
+        gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
       }}
     >
       {children}

@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "seer" | "wolves" | "infect_pdl" | "witch" | "salvateur" | "whitewolf";
+type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -49,6 +49,16 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "La Sorcière ouvre les yeux",
     narrative: "Elle tient entre ses mains le destin des villageois.",
   },
+  enfant_sauvage: {
+    img: "/lycan/roles/villageois.png",
+    title: "L'Enfant Sauvage entrouvre les yeux",
+    narrative: "Il choisit en secret son modèle, celui dont il suivra le destin.",
+  },
+  sectaire: {
+    img: "/lycan/roles/villageois.png",
+    title: "L'Abominable Sectaire",
+    narrative: "Dans l'obscurité, il révèle son allégeance secrète au Maître du Jeu.",
+  },
   salvateur: {
     img: "/lycan/roles/villageois.png",
     title: "Le Salvateur veille",
@@ -75,6 +85,10 @@ function buildSteps(game: GameState): Step[] {
 
   if (game.phaseNumber === 1 && hasAliveRole("cupid"))
     steps.push({ id: "cupid", label: "Cupidon", emoji: "💘" });
+  if (game.phaseNumber === 1 && hasAliveRole("enfant_sauvage") && !game.wildChildModel)
+    steps.push({ id: "enfant_sauvage", label: "Enfant Sauvage", emoji: "🧒" });
+  if (game.phaseNumber === 1 && hasAliveRole("sectaire") && !game.sectaireTeam)
+    steps.push({ id: "sectaire", label: "Sectaire", emoji: "🧿" });
   if (hasAliveRole("seer"))
     steps.push({ id: "seer", label: "Voyante", emoji: "🔮" });
   if (hasAliveRole("salvateur"))
@@ -660,6 +674,124 @@ function WitchStep({ game, onDone }: { game: GameState; onDone: () => void }) {
   );
 }
 
+// ── Étape Enfant Sauvage ──────────────────────────────────────────────────────
+
+function EnfantSauvageStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmWildChildSetModel } = useGame();
+  const [target, setTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const child = game.players.find((p) => p.role === "enfant_sauvage" && p.status !== "dead");
+
+  const handleConfirm = async () => {
+    if (!target) return;
+    setLoading(true);
+    await gmWildChildSetModel(target);
+    setDone(true);
+    setLoading(false);
+  };
+
+  if (done) {
+    const model = game.players.find((p) => p.id === target);
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+          <p className="text-2xl mb-2">🧒</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#34d399" }}>
+            Modèle : <strong>{model?.name ?? "?"}</strong>
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <PlayerPicker
+        players={game.players}
+        selected={target}
+        onSelect={setTarget}
+        exclude={child ? [child.id] : []}
+        label="Modèle choisi par l'Enfant Sauvage"
+      />
+      <NightButton onClick={handleConfirm} disabled={!target || loading}>
+        {loading ? "Enregistrement..." : "🧒 Confirmer le modèle"}
+      </NightButton>
+    </div>
+  );
+}
+
+// ── Étape Sectaire ────────────────────────────────────────────────────────────
+
+function SectaireStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmSectaireChoose } = useGame();
+  const [choice, setChoice] = useState<"wolves" | "village" | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!choice) return;
+    setLoading(true);
+    await gmSectaireChoose(choice);
+    setDone(true);
+    setLoading(false);
+  };
+
+  const sectaire = game.players.find((p) => p.role === "sectaire" && p.status !== "dead");
+
+  if (done) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: choice === "wolves" ? "rgba(139,28,28,0.15)" : "rgba(16,185,129,0.08)",
+          border: `1px solid ${choice === "wolves" ? "rgba(248,113,113,0.4)" : "rgba(52,211,153,0.25)"}`,
+        }}>
+          <p className="text-2xl mb-2">{choice === "wolves" ? "🐺" : "🏡"}</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: choice === "wolves" ? "#f87171" : "#34d399" }}>
+            {sectaire?.name ?? "?"} a choisi : {choice === "wolves" ? "les Loups" : "le Village"}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {sectaire?.name ?? "?"} choisit son allégeance secrète
+      </p>
+      <div className="flex gap-3">
+        <button onClick={() => setChoice("wolves")}
+          className="flex-1 py-4 rounded-xl font-bold text-sm transition-all active:scale-95 border"
+          style={{
+            background: choice === "wolves" ? "rgba(139,28,28,0.3)" : "rgba(11,10,15,0.5)",
+            borderColor: choice === "wolves" ? "rgba(248,113,113,0.6)" : "rgba(201,160,48,0.15)",
+            color: choice === "wolves" ? "#f87171" : "#9490a0",
+            fontFamily: "Cinzel, serif",
+          }}>
+          🐺 Loups
+        </button>
+        <button onClick={() => setChoice("village")}
+          className="flex-1 py-4 rounded-xl font-bold text-sm transition-all active:scale-95 border"
+          style={{
+            background: choice === "village" ? "rgba(16,185,129,0.12)" : "rgba(11,10,15,0.5)",
+            borderColor: choice === "village" ? "rgba(52,211,153,0.5)" : "rgba(201,160,48,0.15)",
+            color: choice === "village" ? "#34d399" : "#9490a0",
+            fontFamily: "Cinzel, serif",
+          }}>
+          🏡 Village
+        </button>
+      </div>
+      <NightButton onClick={handleConfirm} disabled={!choice || loading}>
+        {loading ? "Enregistrement..." : "🧿 Confirmer l'allégeance"}
+      </NightButton>
+    </div>
+  );
+}
+
 // ── Étape Salvateur ───────────────────────────────────────────────────────────
 
 function SalvateurStep({ game, onDone }: { game: GameState; onDone: () => void }) {
@@ -1071,6 +1203,8 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
       {/* Contenu de l'étape */}
       <div>
         {currentStep.id === "cupid" && <CupidStep game={game} onDone={advance} />}
+        {currentStep.id === "enfant_sauvage" && <EnfantSauvageStep game={game} onDone={advance} />}
+        {currentStep.id === "sectaire" && <SectaireStep game={game} onDone={advance} />}
         {currentStep.id === "seer" && <SeerStep game={game} onDone={advance} />}
         {currentStep.id === "salvateur" && <SalvateurStep game={game} onDone={advance} />}
         {currentStep.id === "wolves" && <WolvesStep game={game} onDone={advance} />}

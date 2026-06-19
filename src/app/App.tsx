@@ -833,7 +833,7 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
 // ── Écran : Tableau de bord MJ ────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole } = useGame();
+  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole, gmJudgeTrigger } = useGame();
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
@@ -1260,15 +1260,29 @@ function DashboardScreen() {
                   </div>
                 </div>
               ) : (
-                <PrimaryButton onClick={() => handleResolveVote()} disabled={voteResolving}>
-                  {voteResolving
-                    ? "Résolution..."
-                    : voteResult?.type === "winner"
-                    ? `⚖️ Éliminer ${voteResult.playerName} (${voteResult.votes} vote${voteResult.votes > 1 ? "s" : ""})`
-                    : voteResult?.type === "tie"
-                    ? "⚠️ Égalité — choisir"
-                    : "⚖️ Résoudre le vote"}
-                </PrimaryButton>
+                <>
+                  {/* Juge Bègue — second vote */}
+                  {(() => {
+                    const juge = game.players.find((p) => p.role === "juge_begue" && p.status !== "dead");
+                    if (!juge || game.judgePowerUsed) return null;
+                    return (
+                      <button onClick={() => gmJudgeTrigger()}
+                        className="w-full py-2.5 rounded-xl text-xs font-semibold border transition-all active:scale-[0.99] mb-2"
+                        style={{ background: "rgba(201,160,48,0.06)", borderColor: "rgba(201,160,48,0.25)", color: "var(--gold)", fontFamily: "var(--font-title)" }}>
+                        ⚖️ {juge.name} — Déclencher le second vote
+                      </button>
+                    );
+                  })()}
+                  <PrimaryButton onClick={() => handleResolveVote()} disabled={voteResolving}>
+                    {voteResolving
+                      ? "Résolution..."
+                      : voteResult?.type === "winner"
+                      ? `⚖️ Éliminer ${voteResult.playerName} (${voteResult.votes} vote${voteResult.votes > 1 ? "s" : ""})`
+                      : voteResult?.type === "tie"
+                      ? "⚠️ Égalité — choisir"
+                      : "⚖️ Résoudre le vote"}
+                  </PrimaryButton>
+                </>
               )}
             </>
           )}
