@@ -1762,6 +1762,118 @@ function DashboardScreen() {
   );
 }
 
+// ── Composant : Sélecteur de rôle (distribution auto-assignation) ─────────────
+
+function RolePickerScreen({
+  game, playerName, gameName, nfcSupported, onScanNFC, onClaimRole,
+}: {
+  game: GameState;
+  playerName: string;
+  gameName: string;
+  nfcSupported: boolean;
+  onScanNFC: (roleId: string) => Promise<void>;
+  onClaimRole: (roleId: string) => Promise<void>;
+}) {
+  const [showNFC, setShowNFC] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Calcule les rôles encore disponibles (non pris par d'autres joueurs)
+  const available = game.selectedRoles
+    .map((sr) => {
+      const taken = game.players.filter((p) => p.role === sr.id).length;
+      return { id: sr.id, remaining: sr.count - taken };
+    })
+    .filter((r) => r.remaining > 0)
+    .flatMap((r) => Array.from({ length: r.remaining }, () => r.id))
+    .filter((id, idx, arr) => arr.indexOf(id) === idx); // dedupe pour affichage
+
+  const handleClaim = async (roleId: string) => {
+    setError(null);
+    setLoading(roleId);
+    try {
+      await onClaimRole(roleId);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  if (showNFC) return <NFCScanScreen playerName={playerName} gameName={gameName} onScan={onScanNFC} />;
+
+  return (
+    <div className="relative min-h-full flex flex-col" style={{ background: "var(--bg-deep)" }}>
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.6)" }} />
+      </div>
+
+      <div className="relative z-10 flex flex-col px-5 py-6 gap-5">
+        {/* En-tête */}
+        <div className="text-center">
+          <p className="text-[10px] font-mono uppercase tracking-[0.25em] mb-1" style={{ color: "rgba(201,160,48,0.5)" }}>{gameName}</p>
+          <h2 className="text-xl font-bold" style={{ fontFamily: "Cinzel, serif", color: "var(--text-primary)" }}>
+            Choisis ton rôle
+          </h2>
+          <p className="text-xs mt-1" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>
+            Sélectionne la carte que tu as en main, {playerName}
+          </p>
+        </div>
+
+        {error && (
+          <div className="px-4 py-2.5 rounded-xl text-xs text-center" style={{ background: "rgba(139,28,28,0.2)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", fontFamily: "var(--font-mono)" }}>
+            {error}
+          </div>
+        )}
+
+        {/* Grille de rôles */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {available.map((roleId) => {
+            const role = ROLES_MAP[roleId];
+            if (!role) return null;
+            const isLoading = loading === roleId;
+            return (
+              <button
+                key={roleId}
+                onClick={() => handleClaim(roleId)}
+                disabled={!!loading}
+                className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border transition-all active:scale-95 disabled:opacity-50"
+                style={{
+                  background: "rgba(22,20,31,0.9)",
+                  borderColor: "rgba(201,160,48,0.2)",
+                  fontFamily: "Cinzel, serif",
+                }}
+              >
+                <span className="text-2xl">{isLoading ? "⏳" : role.emoji}</span>
+                <span className="text-xs font-semibold text-center leading-tight" style={{ color: "var(--text-primary)" }}>
+                  {role.name}
+                </span>
+              </button>
+            );
+          })}
+          {available.length === 0 && (
+            <div className="col-span-2 text-center py-8">
+              <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>Tous les rôles ont été pris</p>
+            </div>
+          )}
+        </div>
+
+        {/* Option NFC si dispo */}
+        {nfcSupported && (
+          <button
+            onClick={() => setShowNFC(true)}
+            className="w-full py-3 rounded-xl text-xs uppercase tracking-widest transition-all border"
+            style={{ borderColor: "rgba(201,160,48,0.2)", color: "var(--text-muted)", fontFamily: "Cinzel, serif", background: "rgba(11,10,15,0.4)" }}
+          >
+            📡 Scanner une carte NFC à la place
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Composant : Scan NFC ──────────────────────────────────────────────────────
 
 function NFCScanScreen({ playerName, gameName, onScan }: { playerName: string; gameName: string; onScan: (roleId: string) => Promise<void> }) {
@@ -1891,7 +2003,7 @@ function NFCScanScreen({ playerName, gameName, onScan }: { playerName: string; g
 // ── Écran : Vue Joueur ────────────────────────────────────────────────────────
 
 function PlayerViewScreen() {
-  const { navigate, state, playerVote, corbeauSetTarget, chienLoupChoose, playerScanRole } = useGame();
+  const { navigate, state, playerVote, corbeauSetTarget, chienLoupChoose, playerScanRole, playerClaimRole } = useGame();
   const pv = state.playerView;
   const [myVote, setMyVote] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
@@ -1949,8 +2061,16 @@ function PlayerViewScreen() {
       );
     }
 
-    // Pas encore de rôle — écran de scan NFC
-    return <NFCScanScreen playerName={pv.player.name} gameName={pv.gameName} onScan={playerScanRole} />;
+    // Pas encore de rôle — sélecteur manuel ou NFC
+    const nfcSupported = typeof window !== "undefined" && "NDEFReader" in window;
+    return <RolePickerScreen
+      game={state.game!}
+      playerName={pv.player.name}
+      gameName={pv.gameName}
+      nfcSupported={nfcSupported}
+      onScanNFC={playerScanRole}
+      onClaimRole={playerClaimRole}
+    />;
   }
 
   if (!pv) {

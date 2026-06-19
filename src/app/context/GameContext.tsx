@@ -231,6 +231,7 @@ interface GameContextValue {
   gmSetPlayerOrder: (order: string[]) => Promise<void>;
   gmStartNight: () => Promise<void>;
   playerScanRole: (roleId: string) => Promise<void>;
+  playerClaimRole: (roleId: string) => Promise<void>;
   gmAssignRole: (playerId: string, roleId: string | null) => Promise<void>;
 }
 
@@ -432,6 +433,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       ...g,
       players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId } : p),
     }));
+  };
+
+  const playerClaimRole = async (roleId: string) => {
+    const playerId = playerIdRef.current;
+    if (!playerId) return;
+    await _update((g) => {
+      const taken = g.players.filter((p) => p.id !== playerId && p.role === roleId).length;
+      const total = g.selectedRoles.find((r) => r.id === roleId)?.count ?? 0;
+      if (taken >= total) throw new Error("Ce rôle a déjà été pris par quelqu'un d'autre");
+      return { ...g, players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId } : p) };
+    });
   };
 
   const gmAssignRole = async (playerId: string, roleId: string | null) => {
@@ -1110,7 +1122,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
         gmPyromaniacSpray, gmPyromaniacPrepareIgnite,
         gmVoleurSetup, gmVoleurChoose, gmComedienSetRoles, gmComedienChooseRole,
-        gmSetPlayerOrder, gmStartNight, playerScanRole, gmAssignRole,
+        gmSetPlayerOrder, gmStartNight, playerScanRole, playerClaimRole, gmAssignRole,
       }}
     >
       {children}
