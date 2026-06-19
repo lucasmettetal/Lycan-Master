@@ -73,6 +73,8 @@ export interface GameState {
   sectaireTeam?: "wolves" | "village";
   wildChildModel?: string | null;
   judgePowerUsed?: boolean;
+  foxPowerLost?: boolean;
+  gitaneUsed?: boolean;
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId

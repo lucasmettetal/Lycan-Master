@@ -173,6 +173,8 @@ interface GameContextValue {
   gmWildChildSetModel: (modelId: string) => Promise<void>;
   gmSectaireChoose: (choice: "wolves" | "village") => Promise<void>;
   gmJudgeTrigger: () => Promise<void>;
+  gmRenardInspect: (playerIds: string[]) => Promise<{ hasWolf: boolean }>;
+  gmGitaneSwap: (targetId: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -637,6 +639,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const gmRenardInspect = async (playerIds: string[]): Promise<{ hasWolf: boolean }> => {
+    const game = gameRef.current;
+    if (!game) throw new Error("Pas de partie");
+    const hasWolf = playerIds.some((id) => {
+      const p = game.players.find((pl) => pl.id === id);
+      return p && ROLES_MAP[p.role ?? ""]?.team === "wolves";
+    });
+    if (!hasWolf) {
+      await _update((g) => addHistoryEvent({ ...g, foxPowerLost: true }, "🦊 Le Renard perd son flair — aucun loup dans le groupe inspecté", "power"));
+    }
+    return { hasWolf };
+  };
+
+  const gmGitaneSwap = async (targetId: string) => {
+    await _update((g) => {
+      const gitane = g.players.find((p) => p.role === "gitane" && p.status !== "dead");
+      if (!gitane) return g;
+      const target = g.players.find((p) => p.id === targetId);
+      if (!target) return g;
+      const gitaneRole = gitane.role ?? "gitane";
+      const targetRole = target.role ?? "villager";
+      const withEvent = addHistoryEvent(g, `🔮 La Gitane échange secrètement son rôle avec ${target.name}`, "power");
+      return {
+        ...withEvent,
+        gitaneUsed: true,
+        players: withEvent.players.map((p) => {
+          if (p.id === gitane.id) return { ...p, role: targetRole };
+          if (p.id === targetId) return { ...p, role: gitaneRole };
+          return p;
+        }),
+      };
+    });
+  };
+
   const gmSalvatorProtect = async (targetId: string) => {
     await _update((g) => ({ ...g, nightActions: { ...g.nightActions, salvatorTarget: targetId } }));
   };
@@ -868,6 +904,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         corbeauSetTarget, chienLoupChoose, gmTransferRole,
         gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
         gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
+        gmRenardInspect, gmGitaneSwap,
       }}
     >
       {children}

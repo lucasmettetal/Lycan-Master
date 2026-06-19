@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "salvateur" | "whitewolf";
+type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -59,6 +59,16 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "L'Abominable Sectaire",
     narrative: "Dans l'obscurité, il révèle son allégeance secrète au Maître du Jeu.",
   },
+  gitane: {
+    img: "/lycan/roles/villageois.png",
+    title: "La Gitane s'éveille",
+    narrative: "Elle peut échanger secrètement sa carte avec un autre joueur.",
+  },
+  renard: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Renard ouvre les yeux",
+    narrative: "Son flair lui permet de sentir la présence des loups.",
+  },
   salvateur: {
     img: "/lycan/roles/villageois.png",
     title: "Le Salvateur veille",
@@ -99,6 +109,10 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "infect_pdl", label: "Infect PDL", emoji: "☣️" });
   if (hasAliveRole("witch") && (game.witchPotions?.life || game.witchPotions?.death))
     steps.push({ id: "witch", label: "Sorcière", emoji: "⚗️" });
+  if (hasAliveRole("gitane") && !game.gitaneUsed)
+    steps.push({ id: "gitane", label: "Gitane", emoji: "🔮" });
+  if (hasAliveRole("renard") && !game.foxPowerLost)
+    steps.push({ id: "renard", label: "Renard", emoji: "🦊" });
   if (hasAliveRole("loup_blanc") && game.phaseNumber >= 2 && game.phaseNumber % 2 === 0)
     steps.push({ id: "whitewolf", label: "LG Blanc", emoji: "🐺" });
 
@@ -792,6 +806,166 @@ function SectaireStep({ game, onDone }: { game: GameState; onDone: () => void })
   );
 }
 
+// ── Étape Gitane ──────────────────────────────────────────────────────────────
+
+function GitaneStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmGitaneSwap } = useGame();
+  const [target, setTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [swapped, setSwapped] = useState(false);
+
+  const gitane = game.players.find((p) => p.role === "gitane" && p.status !== "dead");
+
+  const handleSwap = async () => {
+    if (!target) return;
+    setLoading(true);
+    await gmGitaneSwap(target);
+    setSwapped(true);
+    setDone(true);
+    setLoading(false);
+  };
+
+  const handleSkip = async () => {
+    setDone(true);
+  };
+
+  if (done) {
+    const swapTarget = game.players.find((p) => p.id === target);
+    const targetRoleData = swapTarget ? ROLES_MAP[swapTarget.role ?? ""] : null;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: swapped ? "rgba(168,85,247,0.1)" : "rgba(99,102,241,0.08)",
+          border: `1px solid ${swapped ? "rgba(168,85,247,0.35)" : "rgba(99,102,241,0.2)"}`,
+        }}>
+          <p className="text-2xl mb-2">{swapped ? "🔮" : "🌙"}</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: swapped ? "#c084fc" : "#c8c0b0" }}>
+            {swapped
+              ? <><strong style={{ color: "#c084fc" }}>{gitane?.name}</strong> prend le rôle de <strong>{swapTarget?.name}</strong> ({targetRoleData?.name ?? "?"})</>
+              : "La Gitane ne permute pas cette nuit"}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {gitane?.name ?? "?"} peut échanger sa carte (optionnel)
+      </p>
+      <PlayerPicker
+        players={game.players}
+        selected={target}
+        onSelect={setTarget}
+        exclude={gitane ? [gitane.id] : []}
+        label="Joueur dont récupérer le rôle"
+      />
+      <NightButton onClick={handleSwap} disabled={!target || loading}>
+        {loading ? "Échange..." : "🔮 Permuter les rôles"}
+      </NightButton>
+      <button onClick={handleSkip}
+        className="py-2.5 rounded-xl text-xs border transition-all active:scale-95"
+        style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+        Passer — ne pas utiliser le pouvoir
+      </button>
+    </div>
+  );
+}
+
+// ── Étape Renard ──────────────────────────────────────────────────────────────
+
+function RenardStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmRenardInspect } = useGame();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ hasWolf: boolean } | null>(null);
+
+  const renard = game.players.find((p) => p.role === "renard" && p.status !== "dead");
+  const alivePlayers = game.players.filter((p) => p.status !== "dead");
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 3 ? [...prev, id] : prev
+    );
+  };
+
+  const handleInspect = async () => {
+    if (selected.length !== 3) return;
+    setLoading(true);
+    const res = await gmRenardInspect(selected);
+    setResult(res);
+    setLoading(false);
+  };
+
+  if (result !== null) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-5 rounded-xl text-center" style={{
+          background: result.hasWolf ? "rgba(139,28,28,0.18)" : "rgba(16,185,129,0.08)",
+          border: `1px solid ${result.hasWolf ? "rgba(248,113,113,0.4)" : "rgba(52,211,153,0.25)"}`,
+        }}>
+          <p className="text-3xl mb-2">{result.hasWolf ? "🐺" : "✅"}</p>
+          <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: result.hasWolf ? "#f87171" : "#34d399" }}>
+            {result.hasWolf ? "Au moins un loup est dans ce groupe !" : "Aucun loup dans ce groupe"}
+          </p>
+          {!result.hasWolf && (
+            <p className="text-[10px] font-mono mt-2" style={{ color: "var(--text-muted)" }}>
+              Le Renard perd définitivement son flair
+            </p>
+          )}
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {renard?.name ?? "?"} choisit 3 joueurs à inspecter
+      </p>
+      <div className="text-center">
+        <span className="text-xs font-mono px-2 py-1 rounded-full" style={{
+          background: selected.length === 3 ? "rgba(201,160,48,0.12)" : "rgba(201,160,48,0.05)",
+          color: selected.length === 3 ? "var(--gold)" : "var(--text-muted)",
+          border: "1px solid rgba(201,160,48,0.18)",
+        }}>
+          {selected.length}/3 sélectionnés
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {alivePlayers.map((p) => {
+          const isSel = selected.includes(p.id);
+          return (
+            <button key={p.id} onClick={() => toggleSelect(p.id)}
+              className="flex items-center gap-3 p-2.5 rounded-xl text-left transition-all active:scale-[0.98] border"
+              style={{
+                background: isSel ? "rgba(201,160,48,0.1)" : "rgba(11,10,15,0.5)",
+                borderColor: isSel ? "rgba(201,160,48,0.45)" : "rgba(201,160,48,0.1)",
+              }}>
+              <div className="w-5 h-5 rounded border flex items-center justify-center flex-shrink-0" style={{
+                background: isSel ? "rgba(201,160,48,0.2)" : "transparent",
+                borderColor: isSel ? "rgba(201,160,48,0.6)" : "rgba(201,160,48,0.2)",
+              }}>
+                {isSel && <Check size={10} style={{ color: "#c9a030" }} />}
+              </div>
+              <span className="text-sm" style={{ fontFamily: "Cinzel, serif", color: isSel ? "#e8ddd0" : "#c8c0b0" }}>
+                {p.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <NightButton onClick={handleInspect} disabled={selected.length !== 3 || loading}>
+        {loading ? "Inspection..." : "🦊 Inspecter ce groupe"}
+      </NightButton>
+    </div>
+  );
+}
+
 // ── Étape Salvateur ───────────────────────────────────────────────────────────
 
 function SalvateurStep({ game, onDone }: { game: GameState; onDone: () => void }) {
@@ -1210,6 +1384,8 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
         {currentStep.id === "wolves" && <WolvesStep game={game} onDone={advance} />}
         {currentStep.id === "infect_pdl" && <InfectStep game={game} onDone={advance} />}
         {currentStep.id === "witch" && <WitchStep game={game} onDone={advance} />}
+        {currentStep.id === "gitane" && <GitaneStep game={game} onDone={advance} />}
+        {currentStep.id === "renard" && <RenardStep game={game} onDone={advance} />}
         {currentStep.id === "whitewolf" && <WhiteWolfStep game={game} onDone={advance} />}
       </div>
     </div>
