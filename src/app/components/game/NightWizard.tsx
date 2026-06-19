@@ -25,12 +25,12 @@ interface SeerReveal {
 
 const STEP_META: Record<StepId, { img: string; title: string; narrative: string }> = {
   voleur: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/voleur.png",
     title: "Le Voleur s'éveille",
     narrative: "Il examine les deux cartes cachées et décide s'il en prend une.",
   },
   comedien: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/comedien.png",
     title: "Le Comédien entre en scène",
     narrative: "Il choisit l'un de ses rôles spéciaux pour cette nuit.",
   },
@@ -50,7 +50,7 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     narrative: "Ils se reconnaissent et désignent leur proie dans le silence.",
   },
   infect_pdl: {
-    img: "/lycan/roles/loup-garou.png",
+    img: "/lycan/roles/infect-pere-loups.png",
     title: "L'Infect Père des Loups",
     narrative: "Il peut choisir d'infecter la victime plutôt que de la tuer.",
   },
@@ -60,42 +60,42 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     narrative: "Elle tient entre ses mains le destin des villageois.",
   },
   enfant_sauvage: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/enfant-sauvage.png",
     title: "L'Enfant Sauvage entrouvre les yeux",
     narrative: "Il choisit en secret son modèle, celui dont il suivra le destin.",
   },
   sectaire: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/abominable-sectaire.png",
     title: "L'Abominable Sectaire",
     narrative: "Dans l'obscurité, il révèle son allégeance secrète au Maître du Jeu.",
   },
   gitane: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/gitane.png",
     title: "La Gitane s'éveille",
     narrative: "Elle peut échanger secrètement sa carte avec un autre joueur.",
   },
   renard: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/renard.png",
     title: "Le Renard ouvre les yeux",
     narrative: "Son flair lui permet de sentir la présence des loups.",
   },
   joueur_flute: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/joueur-flute.png",
     title: "Le Joueur de Flûte s'éveille",
     narrative: "Sa mélodie envoûtante s'empare des âmes endormies.",
   },
   pyromane: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/pyromane.png",
     title: "Le Pyromane s'éveille",
     narrative: "Il choisit sa prochaine victime… ou déclenche l'embrasement.",
   },
   salvateur: {
-    img: "/lycan/roles/villageois.png",
+    img: "/lycan/roles/salvateur.png",
     title: "Le Salvateur veille",
     narrative: "Il choisit en silence qui il protégera cette nuit.",
   },
   whitewolf: {
-    img: "/lycan/roles/loup-garou.png",
+    img: "/lycan/roles/loup-blanc.png",
     title: "Le Loup-Garou Blanc",
     narrative: "Dans l'ombre, il peut éliminer un des siens pour régner seul.",
   },
