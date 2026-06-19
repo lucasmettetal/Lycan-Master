@@ -1475,20 +1475,34 @@ function DashboardScreen() {
                 {/* Modal d'assignation manuelle */}
                 {manualAssignPlayer && (() => {
                   const target = game.players.find((p) => p.id === manualAssignPlayer);
-                  const allRoles = ROLES.filter((r) => r.playable);
+                  // Slots disponibles = selectedRoles moins ce que les AUTRES joueurs ont déjà
+                  const selectedMap = Object.fromEntries(game.selectedRoles.map((rc) => [rc.id, rc.count]));
+                  const usedByOthers: Record<string, number> = {};
+                  for (const p of game.players) {
+                    if (p.id !== manualAssignPlayer && p.role) {
+                      usedByOthers[p.role] = (usedByOthers[p.role] ?? 0) + 1;
+                    }
+                  }
+                  const availableRoles = ROLES.filter((r) => {
+                    const total = selectedMap[r.id] ?? 0;
+                    if (total === 0) return false;
+                    return (usedByOthers[r.id] ?? 0) < total;
+                  });
                   return (
                     <div className="absolute inset-0 z-50 flex flex-col px-5 py-8 overflow-y-auto" style={{ background: "rgba(11,10,15,0.95)", backdropFilter: "blur(6px)" }}>
                       <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Assigner un rôle</h3>
                       <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>{target?.name}</p>
                       <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto">
-                        {allRoles.map((r) => (
+                        {availableRoles.map((r) => (
                           <button key={r.id} onClick={async () => { await gmAssignRole(manualAssignPlayer, r.id); setManualAssignPlayer(null); }}
                             className="flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98]"
                             style={{ background: target?.role === r.id ? "rgba(201,160,48,0.1)" : "rgba(11,10,15,0.5)", borderColor: target?.role === r.id ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.08)" }}>
                             <span className="text-lg">{r.emoji}</span>
                             <div>
                               <p className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{r.name}</p>
-                              <p className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>{r.category}</p>
+                              <p className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
+                                {r.category} · {(usedByOthers[r.id] ?? 0) + (target?.role === r.id ? 1 : 0)}/{selectedMap[r.id]}
+                              </p>
                             </div>
                             {target?.role === r.id && <span className="ml-auto text-[10px]" style={{ color: "var(--gold)" }}>✓</span>}
                           </button>

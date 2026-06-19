@@ -456,6 +456,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           })),
         };
       }
+      // Transition nuit → jour : vérifier les victoires solo APRÈS les morts de nuit
+      if (next.phase === "day") {
+        let result = checkFluteWin(next);
+        if (result.status === "running") result = checkPyromaneWin(result);
+        return result;
+      }
       return next;
     });
   };
@@ -754,9 +760,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await _update((g) => {
       const newEnchanted = [...new Set([...(g.enchanted ?? []), ...playerIds])];
       const names = playerIds.map((id) => g.players.find((p) => p.id === id)?.name ?? "?").join(" & ");
-      let result = addHistoryEvent({ ...g, enchanted: newEnchanted }, `🎵 ${names} ${playerIds.length > 1 ? "sont ensorcelés" : "est ensorcelé(e)"}`, "power");
-      result = checkFluteWin(result);
-      return result;
+      // Pas de checkFluteWin ici : la victoire est vérifiée à l'aube (gmNextPhase nuit→jour)
+      // afin que les loups puissent encore tuer le Joueur de Flûte cette même nuit
+      return addHistoryEvent({ ...g, enchanted: newEnchanted }, `🎵 ${names} ${playerIds.length > 1 ? "sont ensorcelés" : "est ensorcelé(e)"}`, "power");
     });
   };
 
