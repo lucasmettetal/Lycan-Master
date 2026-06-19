@@ -1,14 +1,16 @@
 export type GamePhase = "waiting" | "night" | "day" | "vote" | "end";
 export type GameMode = "beginner" | "classic" | "expert" | "custom";
 export type PlayerStatus = "alive" | "dead" | "protected" | "infected";
-export type AppView = "home" | "create" | "players" | "roles" | "dashboard" | "player" | "vote" | "history" | "join" | "rules";
+export type AppView = "home" | "create" | "players" | "roles" | "dashboard" | "player" | "vote" | "history" | "join" | "rules" | "guide";
 export type PlayerActionType =
   | "seer_choose_target"
   | "cupid_choose_lovers"
   | "witch_choose_potions"
   | "hunter_choose_target"
   | "day_vote"
-  | "flute_enchant";
+  | "flute_enchant"
+  | "corbeau_accuse"
+  | "chien_loup_choose";
 
 export interface PlayerAction {
   id: string;

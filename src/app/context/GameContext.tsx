@@ -969,12 +969,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         newState = cupidLink(newState, payload.lover1Id, payload.lover2Id);
       }
     } else if (action?.type === "flute_enchant") {
+      // Minimal : met à jour enchanted sans historique (l'historique est ajouté par gmFluteEnchant dans le NightWizard)
       const ids = Array.isArray(payload.playerIds) ? (payload.playerIds as string[]) : [];
       if (ids.length > 0) {
-        const newEnchanted = [...new Set([...(newState.enchanted ?? []), ...ids])];
-        const names = ids.map((id) => newState.players.find((p) => p.id === id)?.name ?? "?").join(" & ");
-        newState = addHistoryEvent({ ...newState, enchanted: newEnchanted }, `🎵 ${names} ${ids.length > 1 ? "sont ensorcelés" : "est ensorcelé(e)"}`, "power");
+        newState = { ...newState, enchanted: [...new Set([...(newState.enchanted ?? []), ...ids])] };
       }
+    } else if (action?.type === "corbeau_accuse") {
+      // Minimal : pose la cible sans historique (l'historique est ajouté par corbeauSetTarget dans le NightWizard)
+      if (typeof payload.targetId === "string") {
+        newState = { ...newState, corbeauTarget: payload.targetId };
+      }
+    } else if (action?.type === "chien_loup_choose") {
+      // Minimal : change le rôle sans historique (l'historique est ajouté par gmChienLoupAssign dans le NightWizard)
+      const choice = payload.choice as "wolves" | "village";
+      const pid = action.playerId;
+      newState = {
+        ...newState,
+        chienLoupChoice: { ...(newState.chienLoupChoice ?? {}), [pid]: choice },
+        players: newState.players.map((p) => p.id === pid ? { ...p, role: choice === "wolves" ? "werewolf" : p.role } : p),
+      };
     }
 
     gameRef.current = newState;

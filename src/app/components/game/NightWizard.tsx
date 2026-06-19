@@ -1739,20 +1739,65 @@ function WhiteWolfStep({ game, onDone }: { game: GameState; onDone: () => void }
 // ── Étape Chien-Loup ──────────────────────────────────────────────────────────
 
 function ChienLoupStep({ game, onDone }: { game: GameState; onDone: () => void }) {
-  const { gmChienLoupAssign } = useGame();
+  const { gmChienLoupAssign, gmCreatePlayerAction, gmCancelPlayerAction } = useGame();
+  const [mode, setMode] = useState<StepMode>("manual");
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
   const clPlayer = game.players.find((p) => p.role === "chien_loup" && p.status !== "dead");
+
+  useEffect(() => {
+    if (mode !== "waiting" || !pendingActionId || !clPlayer) return;
+    const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
+    if (action?.status === "resolved" && action.result) {
+      const choice = (action.result as { choice?: "wolves" | "village" }).choice;
+      if (choice) {
+        gmChienLoupAssign(clPlayer.id, choice).then(() => {
+          setPendingActionId(null);
+          onDone();
+        });
+      }
+    }
+  }, [game, mode, pendingActionId, clPlayer]);
 
   if (!clPlayer) return <NightButton onClick={onDone}>Passer →</NightButton>;
 
+  if (mode === "waiting") {
+    return <WaitingForPlayer
+      playerName={clPlayer.name}
+      isConnected={clPlayer.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
+      onOverride={async () => {
+        if (pendingActionId) await gmCancelPlayerAction(pendingActionId);
+        setPendingActionId(null);
+        setMode("manual");
+      }}
+    />;
+  }
+
   const handle = async (choice: "wolves" | "village") => {
     setLoading(true);
+    try { await gmChienLoupAssign(clPlayer.id, choice); onDone(); }
+    finally { setLoading(false); }
+  };
+
+  const handleDelegate = async () => {
+    setLoading(true);
     try {
-      await gmChienLoupAssign(clPlayer.id, choice);
-      onDone();
-    } finally {
-      setLoading(false);
-    }
+      const id = await gmCreatePlayerAction({
+        playerId: clPlayer.id,
+        type: "chien_loup_choose",
+        title: "Choisir ton camp",
+        description: "Rejoins les Loups ou reste du Village. Décision secrète et définitive.",
+        targets: [],
+        minTargets: 0,
+        maxTargets: 0,
+        context: null,
+      });
+      setPendingActionId(id);
+      setMode("waiting");
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -1760,22 +1805,23 @@ function ChienLoupStep({ game, onDone }: { game: GameState; onDone: () => void }
       <p className="text-center text-xs font-mono mb-1" style={{ color: "var(--text-muted)" }}>
         {clPlayer.name} choisit son camp en secret
       </p>
-      <button
-        onClick={() => handle("wolves")}
-        disabled={loading}
+      <button onClick={() => handle("wolves")} disabled={loading}
         className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
-        style={{ background: "rgba(139,28,28,0.25)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", fontFamily: "var(--font-title)" }}
-      >
+        style={{ background: "rgba(139,28,28,0.25)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", fontFamily: "var(--font-title)" }}>
         🐺 Rejoindre les Loups
       </button>
-      <button
-        onClick={() => handle("village")}
-        disabled={loading}
+      <button onClick={() => handle("village")} disabled={loading}
         className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
-        style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80", fontFamily: "var(--font-title)" }}
-      >
+        style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80", fontFamily: "var(--font-title)" }}>
         🏡 Rester Villageois
       </button>
+      {clPlayer.isConnected && (
+        <button onClick={handleDelegate} disabled={loading}
+          className="w-full py-2 rounded-xl text-[11px] border transition-all"
+          style={{ borderColor: "rgba(201,160,48,0.25)", color: "rgba(201,160,48,0.6)", fontFamily: "Cinzel, serif" }}>
+          📱 Déléguer au Chien-Loup
+        </button>
+      )}
     </div>
   );
 }
@@ -1783,25 +1829,66 @@ function ChienLoupStep({ game, onDone }: { game: GameState; onDone: () => void }
 // ── Étape Corbeau ─────────────────────────────────────────────────────────────
 
 function CorbeauStep({ game, onDone }: { game: GameState; onDone: () => void }) {
-  const { corbeauSetTarget } = useGame();
+  const { corbeauSetTarget, gmCreatePlayerAction, gmCancelPlayerAction } = useGame();
+  const [mode, setMode] = useState<StepMode>("manual");
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const corbeau = game.players.find((p) => p.role === "corbeau" && p.status !== "dead");
   const targets = game.players.filter((p) => p.status !== "dead" && p.role !== "corbeau");
 
+  useEffect(() => {
+    if (mode !== "waiting" || !pendingActionId) return;
+    const action = game.pendingPlayerActions?.find((a) => a.id === pendingActionId);
+    if (action?.status === "resolved" && action.result) {
+      const targetId = (action.result as { targetId?: string }).targetId;
+      if (targetId) {
+        corbeauSetTarget(targetId).then(() => { setPendingActionId(null); onDone(); });
+      }
+    }
+  }, [game, mode, pendingActionId]);
+
+  if (!corbeau) return <NightButton onClick={onDone}>Passer →</NightButton>;
+
+  if (mode === "waiting") {
+    return <WaitingForPlayer
+      playerName={corbeau.name}
+      isConnected={corbeau.isConnected ?? false}
+      action={game.pendingPlayerActions?.find((a) => a.id === pendingActionId)}
+      onOverride={async () => {
+        if (pendingActionId) await gmCancelPlayerAction(pendingActionId);
+        setPendingActionId(null);
+        setMode("manual");
+      }}
+    />;
+  }
+
   const handleConfirm = async () => {
     if (!selected) return;
     setLoading(true);
-    try {
-      await corbeauSetTarget(selected);
-      onDone();
-    } finally {
-      setLoading(false);
-    }
+    try { await corbeauSetTarget(selected); onDone(); }
+    finally { setLoading(false); }
   };
 
-  if (!corbeau) return <NightButton onClick={onDone}>Passer →</NightButton>;
+  const handleDelegate = async () => {
+    setLoading(true);
+    try {
+      const id = await gmCreatePlayerAction({
+        playerId: corbeau.id,
+        type: "corbeau_accuse",
+        title: "Désigner une cible",
+        description: "Choisis secrètement un joueur à accuser. Il recevra +2 votes demain.",
+        targets: targets.map((p) => p.id),
+        minTargets: 1,
+        maxTargets: 1,
+        context: null,
+      });
+      setPendingActionId(id);
+      setMode("waiting");
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
   return (
     <div className="px-5 flex flex-col gap-3">
@@ -1810,18 +1897,14 @@ function CorbeauStep({ game, onDone }: { game: GameState; onDone: () => void }) 
       </p>
       <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
         {targets.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setSelected(p.id)}
+          <button key={p.id} onClick={() => setSelected(p.id)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98]"
             style={{
               background: selected === p.id ? "rgba(124,58,237,0.15)" : "rgba(11,10,15,0.5)",
               borderColor: selected === p.id ? "rgba(124,58,237,0.5)" : "rgba(201,160,48,0.1)",
               color: selected === p.id ? "#c4b5fd" : "var(--text-secondary)",
-              fontFamily: "var(--font-body)",
-              fontSize: "13px",
-            }}
-          >
+              fontFamily: "var(--font-body)", fontSize: "13px",
+            }}>
             <span className="text-base">{selected === p.id ? "✓" : "○"}</span>
             <span>{p.name}</span>
           </button>
@@ -1830,11 +1913,14 @@ function CorbeauStep({ game, onDone }: { game: GameState; onDone: () => void }) 
       <NightButton onClick={handleConfirm} disabled={!selected || loading}>
         Confirmer l'accusation →
       </NightButton>
-      <button
-        onClick={onDone}
-        className="text-center text-[10px] font-mono py-1"
-        style={{ color: "var(--text-muted)" }}
-      >
+      {corbeau.isConnected && (
+        <button onClick={handleDelegate} disabled={loading}
+          className="w-full py-2 rounded-xl text-[11px] border transition-all"
+          style={{ borderColor: "rgba(124,58,237,0.25)", color: "rgba(196,181,253,0.6)", fontFamily: "Cinzel, serif" }}>
+          📱 Déléguer au Corbeau
+        </button>
+      )}
+      <button onClick={onDone} className="text-center text-[10px] font-mono py-1" style={{ color: "var(--text-muted)" }}>
         Passer (pas d'accusation cette nuit)
       </button>
     </div>

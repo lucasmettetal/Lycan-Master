@@ -91,6 +91,8 @@ export function PlayerActionCard({
     hunter_choose_target: "#f97316",
     day_vote: "#c9a030",
     flute_enchant: "#c084fc",
+    corbeau_accuse: "#7c3aed",
+    chien_loup_choose: "#c9a030",
   }[action.type] ?? "#c9a030";
 
   const toggle = (id: string) => {
@@ -108,6 +110,8 @@ export function PlayerActionCard({
       case "hunter_choose_target": return selected.length === 1;
       case "day_vote": return selected.length === 1;
       case "flute_enchant": return selected.length >= 1;
+      case "corbeau_accuse": return selected.length === 1;
+      case "chien_loup_choose": return selected.length === 1;
       default: return false;
     }
   };
@@ -123,6 +127,8 @@ export function PlayerActionCard({
       case "hunter_choose_target": return { targetId: selected[0] };
       case "day_vote": return { targetId: selected[0] };
       case "flute_enchant": return { playerIds: selected };
+      case "corbeau_accuse": return { targetId: selected[0] };
+      case "chien_loup_choose": return { choice: selected[0] };
       default: return {};
     }
   };
@@ -177,7 +183,7 @@ export function PlayerActionCard({
           className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5"
           style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}
         >
-          {{ seer_choose_target: "🔮", cupid_choose_lovers: "💘", witch_choose_potions: "⚗️", hunter_choose_target: "🏹", day_vote: "🗳️", flute_enchant: "🎵" }[action.type]}
+          {{ seer_choose_target: "🔮", cupid_choose_lovers: "💘", witch_choose_potions: "⚗️", hunter_choose_target: "🏹", day_vote: "🗳️", flute_enchant: "🎵", corbeau_accuse: "🐦‍⬛", chien_loup_choose: "🐕" }[action.type]}
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>
@@ -316,6 +322,47 @@ export function PlayerActionCard({
           max={2}
           label={`Ensorceler jusqu'à 2 joueurs (${selected.length}/2)`}
         />
+      )}
+
+      {action.type === "corbeau_accuse" && (
+        <TargetPicker
+          targets={action.targets}
+          allPlayers={allPlayers}
+          selected={selected}
+          onToggle={(id) => setSelected((prev) => prev.includes(id) ? [] : [id])}
+          max={1}
+          label="Choisir la cible à accuser (+2 votes demain)"
+        />
+      )}
+
+      {action.type === "chien_loup_choose" && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-[#9490a0] mb-1">Choisir ton camp (secret et définitif)</p>
+          <button
+            onClick={() => setSelected(["wolves"])}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 border"
+            style={{
+              background: selected[0] === "wolves" ? "rgba(139,28,28,0.3)" : "rgba(139,28,28,0.1)",
+              borderColor: selected[0] === "wolves" ? "rgba(239,68,68,0.6)" : "rgba(239,68,68,0.25)",
+              color: "#f87171",
+              fontFamily: "Cinzel, serif",
+            }}
+          >
+            🐺 Rejoindre les Loups
+          </button>
+          <button
+            onClick={() => setSelected(["village"])}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 border"
+            style={{
+              background: selected[0] === "village" ? "rgba(34,197,94,0.15)" : "rgba(34,197,94,0.05)",
+              borderColor: selected[0] === "village" ? "rgba(34,197,94,0.5)" : "rgba(34,197,94,0.2)",
+              color: "#4ade80",
+              fontFamily: "Cinzel, serif",
+            }}
+          >
+            🏡 Rester Villageois
+          </button>
+        </div>
       )}
 
       {/* Bouton confirmer */}

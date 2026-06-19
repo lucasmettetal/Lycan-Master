@@ -283,7 +283,7 @@ function HomeScreen() {
       </div>
 
       {/* ── Boutons ── */}
-      <div className="w-full flex flex-col gap-3 px-6 mt-10 mb-12 z-10">
+      <div className="w-full max-w-sm flex flex-col gap-3 px-6 mt-10 mb-12 z-10">
         <button
           onClick={() => navigate("create")}
           className="w-full rounded-xl font-semibold uppercase transition-all active:scale-[0.98]"
@@ -318,6 +318,22 @@ function HomeScreen() {
         </button>
 
         <button
+          onClick={() => navigate("guide")}
+          className="w-full rounded-xl uppercase transition-all active:opacity-70"
+          style={{
+            fontFamily: "var(--font-title)",
+            color: "rgba(201,160,48,0.55)",
+            fontSize: "0.75rem",
+            letterSpacing: "0.2em",
+            padding: "13px 24px",
+            background: "transparent",
+            border: "1px solid rgba(201,160,48,0.15)",
+          }}
+        >
+          Comment jouer
+        </button>
+
+        <button
           onClick={() => navigate("rules")}
           className="w-full uppercase transition-all active:opacity-70"
           style={{
@@ -341,6 +357,159 @@ function HomeScreen() {
       >
         Sous la pleine lune
       </p>
+    </div>
+  );
+}
+
+// ── Écran : Guide ──────────────────────────────────────────────────────────────
+
+const GUIDE_STEPS: { emoji: string; title: string; desc: string; tip?: string }[] = [
+  {
+    emoji: "🎮",
+    title: "Créer une partie",
+    desc: "Donne un nom à ta partie, choisis le nombre de joueurs et le mode de jeu. Tu seras le Maître du Jeu.",
+  },
+  {
+    emoji: "👥",
+    title: "Ajouter les joueurs",
+    desc: "Ajoute les joueurs manuellement ou partage le QR code pour qu'ils rejoignent depuis leur téléphone.",
+    tip: "Les joueurs connectés voient en temps réel l'évolution de la partie.",
+  },
+  {
+    emoji: "🎭",
+    title: "Choisir les rôles",
+    desc: "Sélectionne les rôles selon le mode. Le compteur indique quand la composition est complète.",
+  },
+  {
+    emoji: "🃏",
+    title: "Distribuer les rôles",
+    desc: "Assigne chaque rôle à un joueur. Les joueurs découvrent leur rôle secrètement sur leur téléphone.",
+    tip: "Fais passer le téléphone discrètement à chaque joueur, ou utilise le NFC si disponible.",
+  },
+  {
+    emoji: "🌙",
+    title: "Phases de Nuit",
+    desc: "L'assistant de nuit te guide rôle par rôle. Chaque pouvoir est expliqué. Les joueurs connectés peuvent agir directement depuis leur téléphone.",
+    tip: "Appuie sur « Déléguer » pour envoyer une action sur le téléphone du joueur concerné.",
+  },
+  {
+    emoji: "☀️",
+    title: "Phases de Jour",
+    desc: "Les joueurs délibèrent librement. Consulte l'historique des événements nocturnes et le statut de chaque joueur dans le tableau de bord.",
+  },
+  {
+    emoji: "🗳️",
+    title: "Vote du Village",
+    desc: "Lance le vote depuis le tableau de bord. Suis les voix en temps réel puis élimine le joueur désigné.",
+    tip: "Le Capitaine compte double. Le Corbeau donne +2 votes à sa cible.",
+  },
+  {
+    emoji: "📱",
+    title: "Rôle des joueurs",
+    desc: "Chaque joueur rejoint via le code ou QR code. Sur son téléphone il voit son rôle, les instructions de phase, et reçoit les actions que tu lui délègues.",
+  },
+  {
+    emoji: "🏆",
+    title: "Fin de partie",
+    desc: "La victoire est déterminée automatiquement. Loups-Garous, Village ou un rôle solo comme l'Ange, le Pyromane ou le Joueur de Flûte ?",
+  },
+];
+
+function GuideScreen() {
+  const { navigate } = useGame();
+
+  return (
+    <div className="relative min-h-full" style={{ background: "var(--bg-deep)" }}>
+
+      {/* Background */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src="/lycan/lobby-night.png" alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center" }} />
+        <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: "linear-gradient(180deg, rgba(11,10,15,0.65) 0%, rgba(11,10,15,0) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.45)" }} />
+      </div>
+
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
+
+        {/* En-tête */}
+        <div className="flex items-center gap-3 mb-8">
+          <BackButton onClick={() => navigate("home")} />
+          <div>
+            <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>
+              Comment jouer
+            </h2>
+            <p className="text-[10px] font-mono uppercase tracking-widest mt-0.5" style={{ color: "var(--text-muted)" }}>
+              Guide du Maître du Jeu
+            </p>
+          </div>
+        </div>
+
+        {/* Étapes */}
+        <div className="flex flex-col gap-3">
+          {GUIDE_STEPS.map((step, i) => (
+            <div
+              key={i}
+              className="flex gap-4 p-4 rounded-2xl"
+              style={{ background: "rgba(22,20,31,0.85)", border: "1px solid rgba(201,160,48,0.1)" }}
+            >
+              {/* Numéro */}
+              <div
+                className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{
+                  background: "rgba(201,160,48,0.12)",
+                  border: "1px solid rgba(201,160,48,0.3)",
+                  color: "var(--gold)",
+                  fontFamily: "Cinzel, serif",
+                }}
+              >
+                {i + 1}
+              </div>
+
+              {/* Contenu */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-base">{step.emoji}</span>
+                  <h3 className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "var(--text-primary)" }}>
+                    {step.title}
+                  </h3>
+                </div>
+                <p className="text-[13px] leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-secondary)" }}>
+                  {step.desc}
+                </p>
+                {step.tip && (
+                  <p className="mt-2 text-[11px] px-2.5 py-1.5 rounded-lg" style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "rgba(201,160,48,0.7)",
+                    background: "rgba(201,160,48,0.07)",
+                    border: "1px solid rgba(201,160,48,0.15)",
+                  }}>
+                    💡 {step.tip}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={() => navigate("create")}
+          className="w-full mt-6 rounded-xl font-semibold uppercase transition-all active:scale-[0.98]"
+          style={{
+            fontFamily: "var(--font-title)",
+            color: "var(--text-primary)",
+            fontSize: "0.9rem",
+            letterSpacing: "0.14em",
+            padding: "16px 24px",
+            background: "linear-gradient(180deg, #b52828 0%, #8b1c1c 100%)",
+            border: "1px solid rgba(201,160,48,0.32)",
+            boxShadow: "0 4px 22px rgba(139,28,28,0.45)",
+          }}
+        >
+          Créer une partie →
+        </button>
+
+      </div>
     </div>
   );
 }
@@ -381,7 +550,7 @@ function CreateScreen() {
         <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.52)" }} />
       </div>
 
-      <div className="relative z-10 px-5 py-6">
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
 
         {/* En-tête */}
         <div className="flex items-center gap-3 mb-7">
@@ -504,7 +673,7 @@ function PlayersScreen() {
       </div>
 
       {/* ── Contenu ── */}
-      <div className="relative z-10 px-5 py-6">
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center justify-between mb-6">
           <BackButton onClick={() => navigate("create")} />
@@ -697,7 +866,7 @@ function RolesScreen() {
         <img src="/lycan/lobby-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center" }} />
         <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.38)" }} />
       </div>
-      <div className="relative z-10 px-5 py-6">
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton onClick={() => navigate("players")} />
         <div className="flex-1">
@@ -948,7 +1117,7 @@ function DashboardScreen() {
         </div>
       )}
 
-      <div className="relative z-10">
+      <div className="relative z-10 max-w-3xl mx-auto">
         {/* Modal Chasseur — bloque l'interface jusqu'au tir */}
         {game.pendingHunterActions?.length > 0 && <HunterModal game={game} />}
 
@@ -2346,7 +2515,7 @@ function VoteScreen() {
         <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.28)" }} />
       </div>
 
-      <div className="relative z-10 px-5 py-6">
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <BackButton onClick={() => navigate("dashboard")} />
           <div className="flex-1">
@@ -2482,7 +2651,7 @@ function JoinScreen() {
         <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.38)" }} />
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-full px-5 py-6">
+      <div className="relative z-10 flex flex-col min-h-full px-5 py-6 max-w-sm mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <BackButton onClick={() => navigate("home")} />
           <span className="text-[9px] uppercase tracking-[0.3em] px-3 py-1 rounded-full"
@@ -2647,7 +2816,7 @@ function HistoryScreen() {
         <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.28)" }} />
       </div>
 
-      <div className="relative z-10 px-5 py-6">
+      <div className="relative z-10 px-5 py-6 max-w-xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <BackButton onClick={() => navigate("dashboard")} />
           <span className="text-[9px] uppercase tracking-[0.3em] px-3 py-1 rounded-full"
@@ -2776,6 +2945,7 @@ function AppInner() {
       case "history": return <HistoryScreen />;
       case "join": return <JoinScreen />;
       case "rules": return <RulesScreen />;
+      case "guide": return <GuideScreen />;
     }
   };
 
