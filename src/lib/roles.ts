@@ -185,9 +185,9 @@ export const ROLES: RoleData[] = [
     description: "Son vote compte double. Désigne son successeur.",
     defaultCount: 0,
     implemented: true,
-    playable: true,
+    playable: false, // pas un rôle assigné — mécanique élue en jeu
     team: "village",
-    automationLevel: "manual", // TODO: passer à "assisted" quand le double vote est automatisé
+    automationLevel: "manual",
     phase: "setup",
     timing: "Désigné en début de partie, effet passif au vote",
     needsPlayerAction: false,
