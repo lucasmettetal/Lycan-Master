@@ -30,6 +30,29 @@ import { ROLES_MAP } from "../../lib/roles";
 import { createId } from "../../lib/id";
 import type { GameState as GameStateType } from "../../lib/types";
 
+// ── Helper Joueur de Flûte ────────────────────────────────────────────────────
+// Vérifie si tous les vivants (hors Flûte) sont ensorcelés → victoire solo
+function checkFluteWin(g: GameStateType): GameStateType {
+  if (g.status !== "running") return g;
+  const flute = g.players.find((p) => p.role === "joueur_flute" && p.status !== "dead");
+  if (!flute) return g;
+  const enchanted = g.enchanted ?? [];
+  const otherAlive = g.players.filter((p) => p.status !== "dead" && p.id !== flute.id);
+  if (otherAlive.length > 0 && otherAlive.every((p) => enchanted.includes(p.id))) {
+    const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return {
+      ...g,
+      status: "finished" as const,
+      winner: "flute" as const,
+      phase: "end" as const,
+      pendingHunterActions: [],
+      pendingPlayerActions: (g.pendingPlayerActions ?? []).map((a) => a.status === "pending" ? { ...a, status: "cancelled" as const } : a),
+      history: [...g.history, { id: Date.now().toString() + "fl", type: "power" as const, text: `🎵 ${flute.name} (Joueur de Flûte) a ensorcelé tous les survivants — victoire solitaire !`, phase: "Fin de partie", time: now }],
+    };
+  }
+  return g;
+}
+
 // ── Helper Enfant Sauvage ─────────────────────────────────────────────────────
 // Appelé après chaque mort : si le modèle de l'Enfant Sauvage est mort, il bascule loup
 function applyWildChild(g: GameStateType): GameStateType {
@@ -175,6 +198,7 @@ interface GameContextValue {
   gmJudgeTrigger: () => Promise<void>;
   gmRenardInspect: (playerIds: string[]) => Promise<{ hasWolf: boolean }>;
   gmGitaneSwap: (targetId: string) => Promise<void>;
+  gmFluteEnchant: (playerIds: string[]) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -397,6 +421,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           let afterElim = eliminatePlayer(withEvent, bouc.id, "vote");
           afterElim = applyWildChild(afterElim);
           if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
+          if (afterElim.status === "running") afterElim = checkFluteWin(afterElim);
           if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
           return nextPhase(afterElim);
         }
@@ -426,6 +451,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       let afterElim = eliminatePlayer(g, winnerId, "vote");
       afterElim = applyWildChild(afterElim);
       if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
+      if (afterElim.status === "running") afterElim = checkFluteWin(afterElim);
       if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
       return nextPhase(afterElim);
     });
@@ -436,6 +462,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       let result = eliminatePlayer(g, playerId, reason);
       result = applyWildChild(result);
       if (result.status === "running") result = checkWinCondition(result);
+      if (result.status === "running") result = checkFluteWin(result);
       return result;
     });
   };
@@ -459,6 +486,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       let result = hunterShoot(g, hunterId, targetId);
       result = applyWildChild(result);
       if (result.status === "running") result = checkWinCondition(result);
+      if (result.status === "running") result = checkFluteWin(result);
       return result;
     });
   };
@@ -582,6 +610,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (result.status === "running") {
         result = applyWildChild(result);
         if (result.status === "running") result = checkWinCondition(result);
+        if (result.status === "running") result = checkFluteWin(result);
       }
 
       // 6. Loup-Garou Blanc — victoire solitaire si dernier survivant
@@ -636,6 +665,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           votes: corbeauTarget === p.id ? 2 : 0,
         })),
       };
+    });
+  };
+
+  const gmFluteEnchant = async (playerIds: string[]) => {
+    await _update((g) => {
+      const newEnchanted = [...new Set([...(g.enchanted ?? []), ...playerIds])];
+      const names = playerIds.map((id) => g.players.find((p) => p.id === id)?.name ?? "?").join(" & ");
+      let result = addHistoryEvent({ ...g, enchanted: newEnchanted }, `🎵 ${names} ${playerIds.length > 1 ? "sont ensorcelés" : "est ensorcelé(e)"}`, "power");
+      result = checkFluteWin(result);
+      return result;
     });
   };
 
@@ -904,7 +943,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         corbeauSetTarget, chienLoupChoose, gmTransferRole,
         gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
         gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
-        gmRenardInspect, gmGitaneSwap,
+        gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
       }}
     >
       {children}

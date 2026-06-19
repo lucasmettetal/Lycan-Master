@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "salvateur" | "whitewolf";
+type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -69,6 +69,11 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "Le Renard ouvre les yeux",
     narrative: "Son flair lui permet de sentir la présence des loups.",
   },
+  joueur_flute: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Joueur de Flûte s'éveille",
+    narrative: "Sa mélodie envoûtante s'empare des âmes endormies.",
+  },
   salvateur: {
     img: "/lycan/roles/villageois.png",
     title: "Le Salvateur veille",
@@ -113,6 +118,11 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "gitane", label: "Gitane", emoji: "🔮" });
   if (hasAliveRole("renard") && !game.foxPowerLost)
     steps.push({ id: "renard", label: "Renard", emoji: "🦊" });
+  if (hasAliveRole("joueur_flute")) {
+    const enchanted = game.enchanted ?? [];
+    const available = game.players.filter((p) => p.status !== "dead" && p.role !== "joueur_flute" && !enchanted.includes(p.id));
+    if (available.length > 0) steps.push({ id: "joueur_flute", label: "Flûte", emoji: "🎵" });
+  }
   if (hasAliveRole("loup_blanc") && game.phaseNumber >= 2 && game.phaseNumber % 2 === 0)
     steps.push({ id: "whitewolf", label: "LG Blanc", emoji: "🐺" });
 
@@ -806,6 +816,100 @@ function SectaireStep({ game, onDone }: { game: GameState; onDone: () => void })
   );
 }
 
+// ── Étape Joueur de Flûte ─────────────────────────────────────────────────────
+
+function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmFluteEnchant } = useGame();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const flute = game.players.find((p) => p.role === "joueur_flute" && p.status !== "dead");
+  const enchanted = game.enchanted ?? [];
+  const available = game.players.filter(
+    (p) => p.status !== "dead" && p.id !== flute?.id && !enchanted.includes(p.id)
+  );
+  const maxSelect = Math.min(2, available.length);
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < maxSelect ? [...prev, id] : prev
+    );
+  };
+
+  const handleEnchant = async () => {
+    setLoading(true);
+    await gmFluteEnchant(selected);
+    setDone(true);
+    setLoading(false);
+  };
+
+  if (done) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)" }}>
+          <p className="text-2xl mb-2">🎵</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#c084fc" }}>
+            {selected.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(" & ")} ensorcelé(e)(s)
+          </p>
+          <p className="text-[10px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>
+            Total ensorcelés : {(enchanted.length + selected.filter((id) => !enchanted.includes(id)).length)}/{game.players.filter((p) => p.status !== "dead" && p.id !== flute?.id).length}
+          </p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          Joueurs à ensorceler
+        </p>
+        <span className="text-xs font-mono px-2 py-0.5 rounded-full" style={{
+          background: selected.length === maxSelect ? "rgba(168,85,247,0.12)" : "rgba(201,160,48,0.05)",
+          color: selected.length === maxSelect ? "#c084fc" : "var(--text-muted)",
+          border: "1px solid rgba(168,85,247,0.2)",
+        }}>
+          {selected.length}/{maxSelect}
+        </span>
+      </div>
+      {enchanted.length > 0 && (
+        <p className="text-[10px] font-mono text-center" style={{ color: "rgba(168,85,247,0.5)" }}>
+          Déjà ensorcelés : {enchanted.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(", ")}
+        </p>
+      )}
+      <div className="flex flex-col gap-1.5">
+        {available.map((p) => {
+          const isSel = selected.includes(p.id);
+          return (
+            <button key={p.id} onClick={() => toggleSelect(p.id)}
+              className="flex items-center gap-3 p-2.5 rounded-xl text-left transition-all active:scale-[0.98] border"
+              style={{
+                background: isSel ? "rgba(168,85,247,0.12)" : "rgba(11,10,15,0.5)",
+                borderColor: isSel ? "rgba(168,85,247,0.45)" : "rgba(201,160,48,0.1)",
+              }}>
+              <div className="w-5 h-5 rounded border flex items-center justify-center flex-shrink-0" style={{
+                background: isSel ? "rgba(168,85,247,0.25)" : "transparent",
+                borderColor: isSel ? "rgba(168,85,247,0.7)" : "rgba(201,160,48,0.2)",
+              }}>
+                {isSel && <Check size={10} style={{ color: "#c084fc" }} />}
+              </div>
+              <span className="text-sm" style={{ fontFamily: "Cinzel, serif", color: isSel ? "#e8ddd0" : "#c8c0b0" }}>
+                {p.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <NightButton onClick={handleEnchant} disabled={selected.length === 0 || loading}>
+        {loading ? "Envoûtement..." : "🎵 Ensorceler"}
+      </NightButton>
+    </div>
+  );
+}
+
 // ── Étape Gitane ──────────────────────────────────────────────────────────────
 
 function GitaneStep({ game, onDone }: { game: GameState; onDone: () => void }) {
@@ -1386,6 +1490,7 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
         {currentStep.id === "witch" && <WitchStep game={game} onDone={advance} />}
         {currentStep.id === "gitane" && <GitaneStep game={game} onDone={advance} />}
         {currentStep.id === "renard" && <RenardStep game={game} onDone={advance} />}
+        {currentStep.id === "joueur_flute" && <JoueurFluteStep game={game} onDone={advance} />}
         {currentStep.id === "whitewolf" && <WhiteWolfStep game={game} onDone={advance} />}
       </div>
     </div>

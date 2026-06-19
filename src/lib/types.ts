@@ -61,7 +61,7 @@ export interface GameState {
   phase: GamePhase;
   phaseNumber: number;
   status: "waiting" | "running" | "finished";
-  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | null;
   players: Player[];
   selectedRoles: RoleConfig[];
   history: HistoryEvent[];
@@ -75,6 +75,7 @@ export interface GameState {
   judgePowerUsed?: boolean;
   foxPowerLost?: boolean;
   gitaneUsed?: boolean;
+  enchanted?: string[];
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId
@@ -89,7 +90,7 @@ export interface PlayerView {
   gameName: string;
   phase: GamePhase;
   phaseNumber: number;
-  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | null;
   player: {
     id: string;
     name: string;
