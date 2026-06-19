@@ -211,6 +211,7 @@ interface GameContextValue {
   playerResolveAction: (actionId: string, payload: Record<string, unknown>) => Promise<void>;
   corbeauSetTarget: (targetId: string) => Promise<void>;
   chienLoupChoose: (choice: "wolves" | "village") => Promise<void>;
+  gmChienLoupAssign: (playerId: string, choice: "wolves" | "village") => Promise<void>;
   gmTransferRole: (fromPlayerId: string, toPlayerId: string) => Promise<void>;
   gmSalvatorProtect: (targetId: string) => Promise<void>;
   gmWhitewolfKill: (targetId: string | null) => Promise<void>;
@@ -979,7 +980,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await _update((g) => ({ ...g, corbeauTarget: targetId }));
   };
 
-  // ── Chien-Loup : choisir son camp ─────────────────────────────────────────────
+  // ── Chien-Loup : choisir son camp (côté joueur) ────────────────────────────
   const chienLoupChoose = async (choice: "wolves" | "village") => {
     const playerId = playerIdRef.current;
     if (!playerId) return;
@@ -991,6 +992,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           : p
       );
       return { ...g, players, chienLoupChoice };
+    });
+  };
+
+  // ── Chien-Loup : choisir son camp (côté MJ — NightWizard) ──────────────────
+  const gmChienLoupAssign = async (playerId: string, choice: "wolves" | "village") => {
+    await _update((g) => {
+      const chienLoupChoice = { ...(g.chienLoupChoice ?? {}), [playerId]: choice };
+      const players = g.players.map((p) =>
+        p.id === playerId ? { ...p, role: choice === "wolves" ? "werewolf" : p.role } : p
+      );
+      const label = choice === "wolves" ? "rejoint la meute" : "reste du côté du Village";
+      const name = g.players.find((p) => p.id === playerId)?.name ?? "?";
+      return addHistoryEvent({ ...g, players, chienLoupChoice }, `🐕 ${name} (Chien-Loup) ${label}`, "power");
     });
   };
 
@@ -1070,7 +1084,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmCupidLink, gmResolveNight,
         gmCreatePlayerAction, gmCancelPlayerAction,
         playerJoin, playerVote, playerResolveAction,
-        corbeauSetTarget, chienLoupChoose, gmTransferRole,
+        corbeauSetTarget, chienLoupChoose, gmChienLoupAssign, gmTransferRole,
         gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
         gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,

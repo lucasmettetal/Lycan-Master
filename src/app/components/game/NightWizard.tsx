@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "voleur" | "comedien" | "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "pyromane" | "salvateur" | "whitewolf";
+type StepId = "voleur" | "comedien" | "cupid" | "chien_loup" | "corbeau" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "pyromane" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -99,6 +99,16 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "Le Loup-Garou Blanc",
     narrative: "Dans l'ombre, il peut éliminer un des siens pour régner seul.",
   },
+  chien_loup: {
+    img: "/lycan/roles/chien-loup.png",
+    title: "Le Chien-Loup s'éveille",
+    narrative: "Il doit choisir : rejoindre la meute ou rester du côté du Village.",
+  },
+  corbeau: {
+    img: "/lycan/roles/corbeau.png",
+    title: "Le Corbeau dans l'obscurité",
+    narrative: "Il pose secrètement son accusation sur un villageois.",
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -121,6 +131,11 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "enfant_sauvage", label: "Enfant Sauvage", emoji: "🧒" });
   if (game.phaseNumber === 1 && hasAliveRole("sectaire") && !game.sectaireTeam)
     steps.push({ id: "sectaire", label: "Sectaire", emoji: "🧿" });
+  if (game.phaseNumber === 1) {
+    const clPlayer = game.players.find((p) => p.role === "chien_loup" && p.status !== "dead");
+    if (clPlayer && !game.chienLoupChoice?.[clPlayer.id])
+      steps.push({ id: "chien_loup", label: "Chien-Loup", emoji: "🐕" });
+  }
   if (hasAliveRole("seer"))
     steps.push({ id: "seer", label: "Voyante", emoji: "🔮" });
   if (hasAliveRole("salvateur"))
@@ -131,6 +146,8 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "infect_pdl", label: "Infect PDL", emoji: "☣️" });
   if (hasAliveRole("witch") && (game.witchPotions?.life || game.witchPotions?.death))
     steps.push({ id: "witch", label: "Sorcière", emoji: "⚗️" });
+  if (hasAliveRole("corbeau"))
+    steps.push({ id: "corbeau", label: "Corbeau", emoji: "🐦‍⬛" });
   if (hasAliveRole("gitane") && !game.gitaneUsed)
     steps.push({ id: "gitane", label: "Gitane", emoji: "🔮" });
   if (hasAliveRole("renard") && !game.foxPowerLost)
@@ -1661,6 +1678,111 @@ function WhiteWolfStep({ game, onDone }: { game: GameState; onDone: () => void }
   );
 }
 
+// ── Étape Chien-Loup ──────────────────────────────────────────────────────────
+
+function ChienLoupStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmChienLoupAssign } = useGame();
+  const [loading, setLoading] = useState(false);
+  const clPlayer = game.players.find((p) => p.role === "chien_loup" && p.status !== "dead");
+
+  if (!clPlayer) return <NightButton onClick={onDone}>Passer →</NightButton>;
+
+  const handle = async (choice: "wolves" | "village") => {
+    setLoading(true);
+    try {
+      await gmChienLoupAssign(clPlayer.id, choice);
+      onDone();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="px-5 flex flex-col gap-3">
+      <p className="text-center text-xs font-mono mb-1" style={{ color: "var(--text-muted)" }}>
+        {clPlayer.name} choisit son camp en secret
+      </p>
+      <button
+        onClick={() => handle("wolves")}
+        disabled={loading}
+        className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
+        style={{ background: "rgba(139,28,28,0.25)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", fontFamily: "var(--font-title)" }}
+      >
+        🐺 Rejoindre les Loups
+      </button>
+      <button
+        onClick={() => handle("village")}
+        disabled={loading}
+        className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-40"
+        style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80", fontFamily: "var(--font-title)" }}
+      >
+        🏡 Rester Villageois
+      </button>
+    </div>
+  );
+}
+
+// ── Étape Corbeau ─────────────────────────────────────────────────────────────
+
+function CorbeauStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { corbeauSetTarget } = useGame();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const corbeau = game.players.find((p) => p.role === "corbeau" && p.status !== "dead");
+  const targets = game.players.filter((p) => p.status !== "dead" && p.role !== "corbeau");
+
+  const handleConfirm = async () => {
+    if (!selected) return;
+    setLoading(true);
+    try {
+      await corbeauSetTarget(selected);
+      onDone();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!corbeau) return <NightButton onClick={onDone}>Passer →</NightButton>;
+
+  return (
+    <div className="px-5 flex flex-col gap-3">
+      <p className="text-center text-xs font-mono mb-1" style={{ color: "var(--text-muted)" }}>
+        {corbeau.name} désigne sa cible (+2 votes demain)
+      </p>
+      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
+        {targets.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setSelected(p.id)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98]"
+            style={{
+              background: selected === p.id ? "rgba(124,58,237,0.15)" : "rgba(11,10,15,0.5)",
+              borderColor: selected === p.id ? "rgba(124,58,237,0.5)" : "rgba(201,160,48,0.1)",
+              color: selected === p.id ? "#c4b5fd" : "var(--text-secondary)",
+              fontFamily: "var(--font-body)",
+              fontSize: "13px",
+            }}
+          >
+            <span className="text-base">{selected === p.id ? "✓" : "○"}</span>
+            <span>{p.name}</span>
+          </button>
+        ))}
+      </div>
+      <NightButton onClick={handleConfirm} disabled={!selected || loading}>
+        Confirmer l'accusation →
+      </NightButton>
+      <button
+        onClick={onDone}
+        className="text-center text-[10px] font-mono py-1"
+        style={{ color: "var(--text-muted)" }}
+      >
+        Passer (pas d'accusation cette nuit)
+      </button>
+    </div>
+  );
+}
+
 // ── Composant principal ────────────────────────────────────────────────────────
 
 export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => void; phaseNumber?: number }) {
@@ -1891,6 +2013,8 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
         {currentStep.id === "pyromane" && <PyromaneStep game={game} onDone={advance} />}
         {currentStep.id === "joueur_flute" && <JoueurFluteStep game={game} onDone={advance} />}
         {currentStep.id === "whitewolf" && <WhiteWolfStep game={game} onDone={advance} />}
+        {currentStep.id === "chien_loup" && <ChienLoupStep game={game} onDone={advance} />}
+        {currentStep.id === "corbeau" && <CorbeauStep game={game} onDone={advance} />}
       </div>
     </div>
   );
