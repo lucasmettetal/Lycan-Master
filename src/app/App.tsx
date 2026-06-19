@@ -833,12 +833,14 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
 // ── Écran : Tableau de bord MJ ────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole, gmJudgeTrigger } = useGame();
+  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole, gmJudgeTrigger, gmSetPlayerOrder } = useGame();
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
   const [successionDismissed, setSuccessionDismissed] = useState<string | null>(null);
   const [servanteModal, setServanteModal] = useState(false);
+  const [playerOrderModal, setPlayerOrderModal] = useState(false);
+  const [playerOrderDraft, setPlayerOrderDraft] = useState<string[]>([]);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -1014,6 +1016,113 @@ function DashboardScreen() {
             </div>
           </div>
         )}
+
+        {/* Montreur d'Ours — grognement */}
+        {game.players.some((p) => p.role === "montreur_ours" && p.status !== "dead") && (() => {
+          const montreur = game.players.find((p) => p.role === "montreur_ours" && p.status !== "dead")!;
+          const order = game.playerOrder ?? [];
+          const wolfRoleIds = new Set(ROLES.filter((r) => r.team === "wolves").map((r) => r.id));
+          let growls = false;
+          if (order.length > 0) {
+            const idx = order.indexOf(montreur.id);
+            if (idx >= 0) {
+              const leftId = order[(idx - 1 + order.length) % order.length];
+              const rightId = order[(idx + 1) % order.length];
+              growls = [leftId, rightId].some((id) => {
+                const p = game.players.find((pl) => pl.id === id);
+                return p && p.status !== "dead" && wolfRoleIds.has(p.role ?? "");
+              });
+            }
+          }
+          return (
+            <div className="mx-5 mt-3 flex flex-col gap-2">
+              <div className="p-3 rounded-xl flex items-center gap-3" style={{
+                background: growls ? "rgba(139,28,28,0.15)" : "rgba(11,10,15,0.6)",
+                border: `1px solid ${growls ? "rgba(248,113,113,0.35)" : "rgba(201,160,48,0.15)"}`,
+              }}>
+                <span style={{ fontSize: 20 }}>🐻</span>
+                <div className="flex-1">
+                  <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: growls ? "#f87171" : "rgba(201,160,48,0.8)" }}>
+                    Montreur d'Ours — {order.length === 0 ? "Places non configurées" : growls ? "L'ours GROGNE 🔴" : "L'ours se tait ✅"}
+                  </p>
+                  {order.length > 0 && (
+                    <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      Voisins : {[order[(order.indexOf(montreur.id) - 1 + order.length) % order.length], order[(order.indexOf(montreur.id) + 1) % order.length]].map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(" & ")}
+                    </p>
+                  )}
+                </div>
+                <button onClick={() => { setPlayerOrderDraft(game.playerOrder ?? []); setPlayerOrderModal(true); }}
+                  className="px-2 py-1 rounded-lg text-[10px] border transition-all"
+                  style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                  {order.length === 0 ? "Configurer" : "Modifier"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Modal — ordre des places */}
+        {playerOrderModal && (() => {
+          const allPlayers = game.players;
+          const ordered = playerOrderDraft;
+          const unordered = allPlayers.filter((p) => !ordered.includes(p.id));
+          const save = async () => {
+            if (ordered.length === allPlayers.length) {
+              await gmSetPlayerOrder(ordered);
+              setPlayerOrderModal(false);
+            }
+          };
+          return (
+            <div className="absolute inset-0 z-50 flex flex-col px-5 py-8 overflow-y-auto" style={{ background: "rgba(11,10,15,0.95)", backdropFilter: "blur(6px)" }}>
+              <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Ordre des places</h3>
+              <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>Tapez les joueurs dans l'ordre des places (sens horaire)</p>
+              {ordered.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[9px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(201,160,48,0.6)" }}>Ordre défini</p>
+                  <div className="flex flex-col gap-1">
+                    {ordered.map((id, i) => {
+                      const p = allPlayers.find((pl) => pl.id === id);
+                      return (
+                        <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(201,160,48,0.07)", border: "1px solid rgba(201,160,48,0.15)" }}>
+                          <span className="text-[10px] font-mono w-5 text-center" style={{ color: "rgba(201,160,48,0.6)" }}>{i + 1}</span>
+                          <span className="text-xs flex-1" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{p?.name ?? "?"}</span>
+                          <button onClick={() => setPlayerOrderDraft((prev) => prev.filter((x) => x !== id))}
+                            className="text-[9px] px-1.5 py-0.5 rounded border" style={{ borderColor: "rgba(248,113,113,0.3)", color: "#f87171" }}>✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {unordered.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[9px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "var(--text-muted)" }}>À placer</p>
+                  <div className="flex flex-col gap-1">
+                    {unordered.map((p) => (
+                      <button key={p.id} onClick={() => setPlayerOrderDraft((prev) => [...prev, p.id])}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-left border transition-all active:scale-[0.98]"
+                        style={{ background: "rgba(11,10,15,0.5)", borderColor: "rgba(201,160,48,0.12)", color: "#c8c0b0", fontFamily: "Cinzel, serif" }}>
+                        <span className="text-sm">+</span>
+                        <span className="text-xs">{p.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 mt-auto pt-4">
+                <button onClick={() => setPlayerOrderDraft([])} className="flex-1 py-2.5 rounded-xl text-xs border" style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                  Réinitialiser
+                </button>
+                <button onClick={save} disabled={ordered.length !== allPlayers.length}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold disabled:opacity-30 transition-all"
+                  style={{ background: "rgba(201,160,48,0.15)", color: "#c9a030", fontFamily: "Cinzel, serif", border: "1px solid rgba(201,160,48,0.3)" }}>
+                  Enregistrer ({ordered.length}/{allPlayers.length})
+                </button>
+              </div>
+              <button onClick={() => setPlayerOrderModal(false)} className="mt-3 py-2 text-xs text-center" style={{ color: "var(--text-muted)", fontFamily: "Cinzel, serif" }}>Annuler</button>
+            </div>
+          );
+        })()}
 
         {/* Bouton Servante Dévouée (phase day) */}
         {phase === "day" && (() => {

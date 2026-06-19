@@ -80,6 +80,7 @@ export interface GameState {
   voleurCards?: string[] | null;
   comedienRoles?: string[];
   comedienUsed?: string[];
+  playerOrder?: string[];
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId

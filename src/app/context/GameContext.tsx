@@ -227,6 +227,7 @@ interface GameContextValue {
   gmVoleurChoose: (roleId: string | null) => Promise<void>;
   gmComedienSetRoles: (roleIds: string[]) => Promise<void>;
   gmComedienChooseRole: (roleId: string) => Promise<void>;
+  gmSetPlayerOrder: (order: string[]) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -990,6 +991,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await _update((g) => ({ ...g, comedienRoles: roleIds, comedienUsed: [] }));
   };
 
+  const gmSetPlayerOrder = async (order: string[]) => {
+    await _update((g) => ({ ...g, playerOrder: order }));
+  };
+
   const gmComedienChooseRole = async (roleId: string) => {
     await _update((g) => {
       const comedien = g.players.find((p) => p.role === "comedien" && p.status !== "dead");
@@ -1043,6 +1048,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
         gmPyromaniacSpray, gmPyromaniacPrepareIgnite,
         gmVoleurSetup, gmVoleurChoose, gmComedienSetRoles, gmComedienChooseRole,
+        gmSetPlayerOrder,
       }}
     >
       {children}
