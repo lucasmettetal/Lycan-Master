@@ -841,7 +841,7 @@ function DashboardScreen() {
   const [servanteModal, setServanteModal] = useState(false);
   const [playerOrderModal, setPlayerOrderModal] = useState(false);
   const [playerOrderDraft, setPlayerOrderDraft] = useState<string[]>([]);
-  const [manualAssignPlayer, setManualAssignPlayer] = useState<string | null>(null);
+  const [assigningRoleId, setAssigningRoleId] = useState<string | null>(null);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -1427,88 +1427,101 @@ function DashboardScreen() {
             </>
           )}
           {phase === "waiting" && game.scanningRoles && (() => {
+            const assigned = game.players.filter((p) => !!p.role).length;
             const total = game.players.length;
-            const scanned = game.players.filter((p) => !!p.role).length;
-            const allScanned = scanned === total;
+            const allAssigned = assigned === total;
+            // Joueurs sans rôle pour le picker
+            const unassignedPlayers = game.players.filter((p) => !p.role);
+            // Map roleId → joueurs assignés
+            const playersByRole: Record<string, typeof game.players> = {};
+            for (const p of game.players) {
+              if (p.role) {
+                if (!playersByRole[p.role]) playersByRole[p.role] = [];
+                playersByRole[p.role].push(p);
+              }
+            }
             return (
               <div className="flex flex-col gap-3">
-                {/* Progress */}
-                <div className="rounded-2xl p-4" style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.14)" }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--gold)" }}>Distribution des cartes</p>
-                    <span className="text-xs font-mono font-bold" style={{ color: allScanned ? "#34d399" : "var(--gold)" }}>{scanned}/{total}</span>
-                  </div>
-                  {/* Barre de progression */}
-                  <div className="w-full h-1.5 rounded-full mb-4" style={{ background: "rgba(201,160,48,0.1)" }}>
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(scanned / total) * 100}%`, background: allScanned ? "#34d399" : "var(--gold)" }} />
-                  </div>
-                  {/* Liste joueurs */}
-                  <div className="flex flex-col gap-1.5">
-                    {game.players.map((p) => {
-                      const roleData = p.role ? ROLES_MAP[p.role] : null;
-                      return (
-                        <div key={p.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl border" style={{
-                          background: p.role ? "rgba(52,211,153,0.05)" : "rgba(11,10,15,0.5)",
-                          borderColor: p.role ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.08)",
-                        }}>
-                          <span className="text-sm w-5 text-center">{p.role ? "✓" : "⏳"}</span>
-                          <span className="flex-1 text-xs" style={{ fontFamily: "Cinzel, serif", color: p.role ? "#c8c0b0" : "var(--text-muted)" }}>{p.name}</span>
-                          {roleData && <span className="text-[10px] font-mono" style={{ color: "rgba(52,211,153,0.7)" }}>{roleData.emoji} {roleData.name}</span>}
-                          <button onClick={() => setManualAssignPlayer(p.id)}
-                            className="px-2 py-0.5 rounded text-[9px] border transition-all"
-                            style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
-                            {p.role ? "Changer" : "Assigner"}
-                          </button>
+                {/* Header progression */}
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--gold)" }}>Distribution des rôles</p>
+                  <span className="text-xs font-mono font-bold" style={{ color: allAssigned ? "#34d399" : "var(--gold)" }}>{assigned}/{total}</span>
+                </div>
+                <div className="w-full h-1 rounded-full" style={{ background: "rgba(201,160,48,0.1)" }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${total > 0 ? (assigned / total) * 100 : 0}%`, background: allAssigned ? "#34d399" : "var(--gold)" }} />
+                </div>
+
+                {/* Cartes de rôles */}
+                <div className="flex flex-col gap-2">
+                  {game.selectedRoles.map((rc) => {
+                    const roleData = ROLES_MAP[rc.id];
+                    const occupants = playersByRole[rc.id] ?? [];
+                    const emptySlots = rc.count - occupants.length;
+                    return (
+                      <div key={rc.id} className="rounded-xl p-3" style={{ background: "rgba(11,10,15,0.6)", border: `1px solid ${occupants.length === rc.count ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.12)"}` }}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-base">{roleData?.emoji ?? "?"}</span>
+                          <span className="flex-1 text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{roleData?.name ?? rc.id}</span>
+                          <span className="text-[10px] font-mono" style={{ color: occupants.length === rc.count ? "#34d399" : "var(--text-muted)" }}>
+                            {occupants.length}/{rc.count}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {/* Joueurs déjà assignés */}
+                          {occupants.map((p) => (
+                            <button key={p.id}
+                              onClick={async () => { await gmAssignRole(p.id, null); }}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
+                              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#a0f0c8", fontFamily: "Cinzel, serif" }}>
+                              {p.name} <span style={{ color: "rgba(248,113,113,0.7)" }}>×</span>
+                            </button>
+                          ))}
+                          {/* Slots vides */}
+                          {emptySlots > 0 && (
+                            <button onClick={() => setAssigningRoleId(rc.id)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
+                              style={{ border: "1px dashed rgba(201,160,48,0.3)", color: "rgba(201,160,48,0.6)", fontFamily: "Cinzel, serif" }}>
+                              + {emptySlots > 1 ? `${emptySlots} à assigner` : "Assigner"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <button onClick={() => gmStartNight()}
-                  disabled={!allScanned}
+                  disabled={!allAssigned}
                   className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
-                  style={{ background: allScanned ? "rgba(201,160,48,0.15)" : "rgba(201,160,48,0.05)", border: `1px solid ${allScanned ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.1)"}`, color: "#c9a030", fontFamily: "Cinzel, serif" }}>
-                  🌙 {allScanned ? "Démarrer la nuit →" : `En attente… (${total - scanned} restant${total - scanned > 1 ? "s" : ""})`}
+                  style={{ background: allAssigned ? "rgba(201,160,48,0.15)" : "rgba(201,160,48,0.05)", border: `1px solid ${allAssigned ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.1)"}`, color: "#c9a030", fontFamily: "Cinzel, serif" }}>
+                  🌙 {allAssigned ? "Démarrer la nuit →" : `En attente… (${total - assigned} restant${total - assigned > 1 ? "s" : ""})`}
                 </button>
 
-                {/* Modal d'assignation manuelle */}
-                {manualAssignPlayer && (() => {
-                  const target = game.players.find((p) => p.id === manualAssignPlayer);
-                  // Slots disponibles = selectedRoles moins ce que les AUTRES joueurs ont déjà
-                  const selectedMap = Object.fromEntries(game.selectedRoles.map((rc) => [rc.id, rc.count]));
-                  const usedByOthers: Record<string, number> = {};
-                  for (const p of game.players) {
-                    if (p.id !== manualAssignPlayer && p.role) {
-                      usedByOthers[p.role] = (usedByOthers[p.role] ?? 0) + 1;
-                    }
-                  }
-                  const availableRoles = ROLES.filter((r) => {
-                    const total = selectedMap[r.id] ?? 0;
-                    if (total === 0) return false;
-                    return (usedByOthers[r.id] ?? 0) < total;
-                  });
+                {/* Modal choix joueur → rôle sélectionné */}
+                {assigningRoleId && (() => {
+                  const roleData = ROLES_MAP[assigningRoleId];
                   return (
                     <div className="absolute inset-0 z-50 flex flex-col px-5 py-8 overflow-y-auto" style={{ background: "rgba(11,10,15,0.95)", backdropFilter: "blur(6px)" }}>
-                      <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Assigner un rôle</h3>
-                      <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>{target?.name}</p>
+                      <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>
+                        {roleData?.emoji} {roleData?.name}
+                      </h3>
+                      <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>Choisir le joueur à assigner</p>
                       <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto">
-                        {availableRoles.map((r) => (
-                          <button key={r.id} onClick={async () => { await gmAssignRole(manualAssignPlayer, r.id); setManualAssignPlayer(null); }}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98]"
-                            style={{ background: target?.role === r.id ? "rgba(201,160,48,0.1)" : "rgba(11,10,15,0.5)", borderColor: target?.role === r.id ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.08)" }}>
-                            <span className="text-lg">{r.emoji}</span>
-                            <div>
-                              <p className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{r.name}</p>
-                              <p className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
-                                {r.category} · {(usedByOthers[r.id] ?? 0) + (target?.role === r.id ? 1 : 0)}/{selectedMap[r.id]}
-                              </p>
-                            </div>
-                            {target?.role === r.id && <span className="ml-auto text-[10px]" style={{ color: "var(--gold)" }}>✓</span>}
-                          </button>
-                        ))}
+                        {unassignedPlayers.length === 0 ? (
+                          <p className="text-center text-[10px] font-mono py-6" style={{ color: "var(--text-muted)" }}>Tous les joueurs ont déjà un rôle</p>
+                        ) : (
+                          unassignedPlayers.map((p) => (
+                            <button key={p.id}
+                              onClick={async () => { await gmAssignRole(p.id, assigningRoleId); setAssigningRoleId(null); }}
+                              className="flex items-center gap-3 px-3 py-3 rounded-xl border text-left transition-all active:scale-[0.98]"
+                              style={{ background: "rgba(11,10,15,0.5)", borderColor: "rgba(201,160,48,0.12)" }}>
+                              <span className="text-sm">👤</span>
+                              <span className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{p.name}</span>
+                            </button>
+                          ))
+                        )}
                       </div>
-                      <button onClick={() => setManualAssignPlayer(null)} className="mt-4 py-2.5 rounded-xl text-xs border" style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                      <button onClick={() => setAssigningRoleId(null)} className="mt-4 py-2.5 rounded-xl text-xs border" style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
                         Annuler
                       </button>
                     </div>

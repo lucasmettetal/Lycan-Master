@@ -231,7 +231,7 @@ interface GameContextValue {
   gmSetPlayerOrder: (order: string[]) => Promise<void>;
   gmStartNight: () => Promise<void>;
   playerScanRole: (roleId: string) => Promise<void>;
-  gmAssignRole: (playerId: string, roleId: string) => Promise<void>;
+  gmAssignRole: (playerId: string, roleId: string | null) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -434,10 +434,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const gmAssignRole = async (playerId: string, roleId: string) => {
+  const gmAssignRole = async (playerId: string, roleId: string | null) => {
     await _update((g) => ({
       ...g,
-      players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId } : p),
+      players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId ?? undefined } : p),
     }));
   };
 
