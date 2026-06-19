@@ -223,6 +223,10 @@ interface GameContextValue {
   gmFluteEnchant: (playerIds: string[]) => Promise<void>;
   gmPyromaniacSpray: (targetId: string) => Promise<void>;
   gmPyromaniacPrepareIgnite: () => Promise<void>;
+  gmVoleurSetup: (cards: string[]) => Promise<void>;
+  gmVoleurChoose: (roleId: string | null) => Promise<void>;
+  gmComedienSetRoles: (roleIds: string[]) => Promise<void>;
+  gmComedienChooseRole: (roleId: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -961,6 +965,44 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const gmVoleurSetup = async (cards: string[]) => {
+    await _update((g) => ({ ...g, voleurCards: cards }));
+  };
+
+  const gmVoleurChoose = async (roleId: string | null) => {
+    await _update((g) => {
+      const voleur = g.players.find((p) => p.role === "voleur" && p.status !== "dead");
+      if (!voleur) return { ...g, voleurCards: null };
+      if (!roleId) {
+        // garde sa carte
+        return addHistoryEvent({ ...g, voleurCards: null }, `🃏 ${voleur.name} (Voleur) garde sa carte`, "power");
+      }
+      const roleMeta = ROLES_MAP[roleId];
+      const withEvent = addHistoryEvent({ ...g, voleurCards: null }, `🃏 ${voleur.name} (Voleur) échange sa carte contre ${roleMeta?.name ?? roleId}`, "power");
+      return {
+        ...withEvent,
+        players: withEvent.players.map((p) => p.id === voleur.id ? { ...p, role: roleId } : p),
+      };
+    });
+  };
+
+  const gmComedienSetRoles = async (roleIds: string[]) => {
+    await _update((g) => ({ ...g, comedienRoles: roleIds, comedienUsed: [] }));
+  };
+
+  const gmComedienChooseRole = async (roleId: string) => {
+    await _update((g) => {
+      const comedien = g.players.find((p) => p.role === "comedien" && p.status !== "dead");
+      const roleMeta = ROLES_MAP[roleId];
+      const used = [...new Set([...(g.comedienUsed ?? []), roleId])];
+      return addHistoryEvent(
+        { ...g, comedienUsed: used },
+        `🎭 ${comedien?.name ?? "Comédien"} joue le rôle de ${roleMeta?.name ?? roleId} cette nuit`,
+        "power"
+      );
+    });
+  };
+
   // ── Servante Dévouée : transférer le rôle d'un mort ────────────────────────────
   const gmTransferRole = async (fromPlayerId: string, toPlayerId: string) => {
     await _update((g) => {
@@ -1000,6 +1042,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
         gmPyromaniacSpray, gmPyromaniacPrepareIgnite,
+        gmVoleurSetup, gmVoleurChoose, gmComedienSetRoles, gmComedienChooseRole,
       }}
     >
       {children}

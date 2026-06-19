@@ -77,6 +77,9 @@ export interface GameState {
   gitaneUsed?: boolean;
   enchanted?: string[];
   oiled?: string[];
+  voleurCards?: string[] | null;
+  comedienRoles?: string[];
+  comedienUsed?: string[];
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId

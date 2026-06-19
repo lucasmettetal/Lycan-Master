@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "pyromane" | "salvateur" | "whitewolf";
+type StepId = "voleur" | "comedien" | "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "pyromane" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -24,6 +24,16 @@ interface SeerReveal {
 // ── Meta visuelle par étape ────────────────────────────────────────────────────
 
 const STEP_META: Record<StepId, { img: string; title: string; narrative: string }> = {
+  voleur: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Voleur s'éveille",
+    narrative: "Il examine les deux cartes cachées et décide s'il en prend une.",
+  },
+  comedien: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Comédien entre en scène",
+    narrative: "Il choisit l'un de ses rôles spéciaux pour cette nuit.",
+  },
   cupid: {
     img: "/lycan/roles/cupidon.png",
     title: "Cupidon s'éveille",
@@ -103,6 +113,8 @@ function buildSteps(game: GameState): Step[] {
     (p) => WOLF_ROLE_IDS.has(p.role ?? "") && p.status !== "dead"
   );
 
+  if (game.phaseNumber === 1 && hasAliveRole("voleur"))
+    steps.push({ id: "voleur", label: "Voleur", emoji: "🃏" });
   if (game.phaseNumber === 1 && hasAliveRole("cupid"))
     steps.push({ id: "cupid", label: "Cupidon", emoji: "💘" });
   if (game.phaseNumber === 1 && hasAliveRole("enfant_sauvage") && !game.wildChildModel)
@@ -125,6 +137,8 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "renard", label: "Renard", emoji: "🦊" });
   if (hasAliveRole("pyromane"))
     steps.push({ id: "pyromane", label: "Pyromane", emoji: "🔥" });
+  if (hasAliveRole("comedien") && (game.comedienRoles ?? []).some((r) => !(game.comedienUsed ?? []).includes(r)))
+    steps.push({ id: "comedien", label: "Comédien", emoji: "🎭" });
   if (hasAliveRole("joueur_flute")) {
     const enchanted = game.enchanted ?? [];
     const available = game.players.filter((p) => p.status !== "dead" && p.role !== "joueur_flute" && !enchanted.includes(p.id));
@@ -299,6 +313,246 @@ function PlayerPicker({
           <p className="text-[11px] font-mono py-2 text-center" style={{ color: "var(--text-muted)" }}>Aucun joueur disponible</p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Étape Voleur ──────────────────────────────────────────────────────────────
+
+function VoleurStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmVoleurSetup, gmVoleurChoose } = useGame();
+  const [phase, setPhase] = useState<"setup" | "choose">(game.voleurCards ? "choose" : "setup");
+  const [card1, setCard1] = useState<string | null>(null);
+  const [card2, setCard2] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const voleur = game.players.find((p) => p.role === "voleur" && p.status !== "dead");
+  const cards = game.voleurCards ?? (card1 && card2 ? [card1, card2] : null);
+
+  const wolfRoles = new Set(ROLES.filter((r) => r.team === "wolves").map((r) => r.id));
+  const bothWolves = cards ? cards.every((c) => wolfRoles.has(c)) : false;
+
+  const availableRoles = ROLES.filter((r) => r.playable && r.id !== "voleur" && r.id !== "comedien");
+
+  const handleSetup = async () => {
+    if (!card1 || !card2) return;
+    setLoading(true);
+    await gmVoleurSetup([card1, card2]);
+    setPhase("choose");
+    setLoading(false);
+  };
+
+  const handleChoose = async (roleId: string | null) => {
+    setLoading(true);
+    await gmVoleurChoose(roleId);
+    setDone(true);
+    setLoading(false);
+  };
+
+  if (done) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{ background: "rgba(201,160,48,0.07)", border: "1px solid rgba(201,160,48,0.2)" }}>
+          <p className="text-2xl mb-2">🃏</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Choix enregistré</p>
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  if (phase === "setup") {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+          {voleur?.name ?? "?"} — entrez les 2 cartes non distribuées
+        </p>
+        <div className="flex flex-col gap-2">
+          {[0, 1].map((i) => {
+            const val = i === 0 ? card1 : card2;
+            const set = i === 0 ? setCard1 : setCard2;
+            return (
+              <div key={i}>
+                <p className="text-[9px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(201,160,48,0.6)" }}>Carte {i + 1}</p>
+                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                  {availableRoles.map((r) => (
+                    <button key={r.id} onClick={() => set(r.id)}
+                      className="flex items-center gap-2 p-2 rounded-lg text-left transition-all border"
+                      style={{
+                        background: val === r.id ? "rgba(139,28,28,0.18)" : "rgba(11,10,15,0.5)",
+                        borderColor: val === r.id ? "rgba(248,113,113,0.4)" : "rgba(201,160,48,0.12)",
+                      }}>
+                      <span className="text-sm">{r.emoji}</span>
+                      <span className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{r.name}</span>
+                      {val === r.id && <Check size={12} style={{ color: "#f87171", marginLeft: "auto" }} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <NightButton onClick={handleSetup} disabled={!card1 || !card2 || loading}>
+          {loading ? "..." : "Confirmer les cartes →"}
+        </NightButton>
+      </div>
+    );
+  }
+
+  // Phase choose
+  const choiceCards = game.voleurCards ?? [card1!, card2!];
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {voleur?.name ?? "?"} — choisit sa carte
+      </p>
+      {bothWolves && (
+        <div className="px-3 py-2 rounded-lg" style={{ background: "rgba(139,28,28,0.15)", border: "1px solid rgba(248,113,113,0.3)" }}>
+          <p className="text-[10px] font-mono" style={{ color: "#f87171" }}>⚠️ Les 2 cartes sont des Loups — il DOIT en prendre une</p>
+        </div>
+      )}
+      <div className="flex flex-col gap-2">
+        {choiceCards.map((roleId) => {
+          const r = ROLES_MAP[roleId];
+          return (
+            <button key={roleId} onClick={() => handleChoose(roleId)} disabled={loading}
+              className="flex items-center gap-3 p-3.5 rounded-xl border transition-all active:scale-95"
+              style={{ background: "rgba(139,28,28,0.1)", borderColor: "rgba(248,113,113,0.25)", color: "#e8ddd0", fontFamily: "Cinzel, serif" }}>
+              <span className="text-xl">{r?.emoji ?? "?"}</span>
+              <span className="text-sm">{r?.name ?? roleId}</span>
+            </button>
+          );
+        })}
+        {!bothWolves && (
+          <button onClick={() => handleChoose(null)} disabled={loading}
+            className="w-full py-3 rounded-xl text-xs border transition-all active:scale-95"
+            style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+            Garder sa carte actuelle
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Étape Comédien ────────────────────────────────────────────────────────────
+
+function ComedienStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmComedienSetRoles, gmComedienChooseRole } = useGame();
+  const [setupRoles, setSetupRoles] = useState<string[]>([]);
+  const [phase, setPhase] = useState<"setup" | "choose">(game.comedienRoles ? "choose" : "setup");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [chosenRole, setChosenRole] = useState<string | null>(null);
+
+  const comedien = game.players.find((p) => p.role === "comedien" && p.status !== "dead");
+  const used = game.comedienUsed ?? [];
+  const availableRoles = ROLES.filter((r) => r.playable && r.id !== "comedien" && r.id !== "voleur");
+  const comedienRoles = game.comedienRoles ?? setupRoles;
+  const remainingRoles = comedienRoles.filter((r) => !used.includes(r));
+
+  const handleSetup = async () => {
+    if (setupRoles.length !== 3) return;
+    setLoading(true);
+    await gmComedienSetRoles(setupRoles);
+    setPhase("choose");
+    setLoading(false);
+  };
+
+  const handleChoose = async (roleId: string) => {
+    setLoading(true);
+    setChosenRole(roleId);
+    await gmComedienChooseRole(roleId);
+    setDone(true);
+    setLoading(false);
+  };
+
+  if (done && chosenRole) {
+    const r = ROLES_MAP[chosenRole];
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.25)" }}>
+          <p className="text-2xl mb-2">{r?.emoji ?? "🎭"}</p>
+          <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "#c084fc" }}>{r?.name ?? chosenRole}</p>
+          {r?.instructions?.night && (
+            <p className="text-[11px] mt-2 leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>{r.instructions.night}</p>
+          )}
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  if (phase === "setup") {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+          {comedien?.name ?? "?"} — choisissez 3 rôles spéciaux
+        </p>
+        <p className="text-[10px] font-mono text-center" style={{ color: "rgba(168,85,247,0.7)" }}>
+          {setupRoles.length}/3 sélectionnés
+        </p>
+        <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
+          {availableRoles.map((r) => {
+            const sel = setupRoles.includes(r.id);
+            return (
+              <button key={r.id} onClick={() => {
+                if (sel) setSetupRoles((prev) => prev.filter((x) => x !== r.id));
+                else if (setupRoles.length < 3) setSetupRoles((prev) => [...prev, r.id]);
+              }}
+                className="flex items-center gap-2 p-2 rounded-lg text-left border transition-all"
+                style={{
+                  background: sel ? "rgba(168,85,247,0.1)" : "rgba(11,10,15,0.5)",
+                  borderColor: sel ? "rgba(168,85,247,0.4)" : "rgba(201,160,48,0.1)",
+                }}>
+                <span className="text-sm">{r.emoji}</span>
+                <span className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{r.name}</span>
+                {sel && <Check size={12} style={{ color: "#c084fc", marginLeft: "auto" }} />}
+              </button>
+            );
+          })}
+        </div>
+        <NightButton onClick={handleSetup} disabled={setupRoles.length !== 3 || loading}>
+          {loading ? "..." : "Confirmer les 3 rôles →"}
+        </NightButton>
+      </div>
+    );
+  }
+
+  // Phase choose tonight's role
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+        {comedien?.name ?? "?"} — choisit son rôle de cette nuit
+      </p>
+      {remainingRoles.length === 0 ? (
+        <div className="p-3 rounded-xl text-center" style={{ background: "rgba(11,10,15,0.5)", border: "1px solid rgba(201,160,48,0.12)" }}>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Tous les rôles ont été utilisés</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {remainingRoles.map((roleId) => {
+            const r = ROLES_MAP[roleId];
+            return (
+              <button key={roleId} onClick={() => handleChoose(roleId)} disabled={loading}
+                className="flex items-center gap-3 p-3.5 rounded-xl border transition-all active:scale-95"
+                style={{ background: "rgba(168,85,247,0.07)", borderColor: "rgba(168,85,247,0.25)", color: "#e8ddd0", fontFamily: "Cinzel, serif" }}>
+                <span className="text-xl">{r?.emoji ?? "?"}</span>
+                <div className="flex-1 text-left">
+                  <p className="text-sm">{r?.name ?? roleId}</p>
+                  <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>{r?.timing ?? ""}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <button onClick={onDone}
+        className="w-full py-2.5 rounded-xl text-xs border transition-all active:scale-95"
+        style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+        Passer cette nuit
+      </button>
     </div>
   );
 }
@@ -1623,6 +1877,8 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
       {/* Contenu de l'étape */}
       <div>
         {currentStep.id === "cupid" && <CupidStep game={game} onDone={advance} />}
+        {currentStep.id === "voleur" && <VoleurStep game={game} onDone={advance} />}
+        {currentStep.id === "comedien" && <ComedienStep game={game} onDone={advance} />}
         {currentStep.id === "enfant_sauvage" && <EnfantSauvageStep game={game} onDone={advance} />}
         {currentStep.id === "sectaire" && <SectaireStep game={game} onDone={advance} />}
         {currentStep.id === "seer" && <SeerStep game={game} onDone={advance} />}
