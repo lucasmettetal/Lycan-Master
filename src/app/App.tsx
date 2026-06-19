@@ -319,15 +319,15 @@ function HomeScreen() {
 
         <button
           onClick={() => navigate("guide")}
-          className="w-full rounded-xl uppercase transition-all active:opacity-70"
+          className="w-full rounded-xl uppercase transition-all active:scale-[0.98]"
           style={{
             fontFamily: "var(--font-title)",
-            color: "rgba(201,160,48,0.55)",
-            fontSize: "0.75rem",
-            letterSpacing: "0.2em",
-            padding: "13px 24px",
-            background: "transparent",
-            border: "1px solid rgba(201,160,48,0.15)",
+            color: "var(--gold)",
+            fontSize: "0.8rem",
+            letterSpacing: "0.18em",
+            padding: "14px 24px",
+            background: "rgba(11,10,15,0.45)",
+            border: "1px solid rgba(201,160,48,0.35)",
           }}
         >
           Comment jouer
@@ -335,15 +335,15 @@ function HomeScreen() {
 
         <button
           onClick={() => navigate("rules")}
-          className="w-full uppercase transition-all active:opacity-70"
+          className="w-full rounded-xl uppercase transition-all active:scale-[0.98]"
           style={{
             fontFamily: "var(--font-title)",
-            color: "var(--text-muted)",
+            color: "rgba(200,192,176,0.75)",
             fontSize: "0.75rem",
             letterSpacing: "0.22em",
             padding: "12px 24px",
-            background: "transparent",
-            border: "none",
+            background: "rgba(11,10,15,0.35)",
+            border: "1px solid rgba(201,160,48,0.12)",
           }}
         >
           Règles et rôles
