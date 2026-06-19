@@ -81,6 +81,7 @@ export interface GameState {
   comedienRoles?: string[];
   comedienUsed?: string[];
   playerOrder?: string[];
+  scanningRoles?: boolean;
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId

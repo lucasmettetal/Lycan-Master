@@ -833,7 +833,7 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
 // ── Écran : Tableau de bord MJ ────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole, gmJudgeTrigger, gmSetPlayerOrder } = useGame();
+  const { navigate, state, gmNextPhase, gmResolveVote, gmEliminate, gmSetCaptain, gmEndGame, setError, gmTransferRole, gmJudgeTrigger, gmSetPlayerOrder, gmStartNight, gmAssignRole } = useGame();
   const [simPlayerId, setSimPlayerId] = useState<string | null>(null);
   const [voteResolving, setVoteResolving] = useState(false);
   const [confirmNoVote, setConfirmNoVote] = useState(false);
@@ -841,6 +841,7 @@ function DashboardScreen() {
   const [servanteModal, setServanteModal] = useState(false);
   const [playerOrderModal, setPlayerOrderModal] = useState(false);
   const [playerOrderDraft, setPlayerOrderDraft] = useState<string[]>([]);
+  const [manualAssignPlayer, setManualAssignPlayer] = useState<string | null>(null);
   const game = state.game;
 
   if (!game) return <div className="flex items-center justify-center min-h-full text-[#9490a0]">Chargement...</div>;
@@ -1425,7 +1426,85 @@ function DashboardScreen() {
               )}
             </>
           )}
-          {phase === "waiting" && (
+          {phase === "waiting" && game.scanningRoles && (() => {
+            const total = game.players.length;
+            const scanned = game.players.filter((p) => !!p.role).length;
+            const allScanned = scanned === total;
+            return (
+              <div className="flex flex-col gap-3">
+                {/* Progress */}
+                <div className="rounded-2xl p-4" style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.14)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[9px] font-mono uppercase tracking-widest" style={{ color: "var(--gold)" }}>Distribution des cartes</p>
+                    <span className="text-xs font-mono font-bold" style={{ color: allScanned ? "#34d399" : "var(--gold)" }}>{scanned}/{total}</span>
+                  </div>
+                  {/* Barre de progression */}
+                  <div className="w-full h-1.5 rounded-full mb-4" style={{ background: "rgba(201,160,48,0.1)" }}>
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(scanned / total) * 100}%`, background: allScanned ? "#34d399" : "var(--gold)" }} />
+                  </div>
+                  {/* Liste joueurs */}
+                  <div className="flex flex-col gap-1.5">
+                    {game.players.map((p) => {
+                      const roleData = p.role ? ROLES_MAP[p.role] : null;
+                      return (
+                        <div key={p.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl border" style={{
+                          background: p.role ? "rgba(52,211,153,0.05)" : "rgba(11,10,15,0.5)",
+                          borderColor: p.role ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.08)",
+                        }}>
+                          <span className="text-sm w-5 text-center">{p.role ? "✓" : "⏳"}</span>
+                          <span className="flex-1 text-xs" style={{ fontFamily: "Cinzel, serif", color: p.role ? "#c8c0b0" : "var(--text-muted)" }}>{p.name}</span>
+                          {roleData && <span className="text-[10px] font-mono" style={{ color: "rgba(52,211,153,0.7)" }}>{roleData.emoji} {roleData.name}</span>}
+                          <button onClick={() => setManualAssignPlayer(p.id)}
+                            className="px-2 py-0.5 rounded text-[9px] border transition-all"
+                            style={{ borderColor: "rgba(201,160,48,0.2)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                            {p.role ? "Changer" : "Assigner"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button onClick={() => gmStartNight()}
+                  disabled={!allScanned}
+                  className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-40"
+                  style={{ background: allScanned ? "rgba(201,160,48,0.15)" : "rgba(201,160,48,0.05)", border: `1px solid ${allScanned ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.1)"}`, color: "#c9a030", fontFamily: "Cinzel, serif" }}>
+                  🌙 {allScanned ? "Démarrer la nuit →" : `En attente… (${total - scanned} restant${total - scanned > 1 ? "s" : ""})`}
+                </button>
+
+                {/* Modal d'assignation manuelle */}
+                {manualAssignPlayer && (() => {
+                  const target = game.players.find((p) => p.id === manualAssignPlayer);
+                  const allRoles = ROLES.filter((r) => r.playable);
+                  return (
+                    <div className="absolute inset-0 z-50 flex flex-col px-5 py-8 overflow-y-auto" style={{ background: "rgba(11,10,15,0.95)", backdropFilter: "blur(6px)" }}>
+                      <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Assigner un rôle</h3>
+                      <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>{target?.name}</p>
+                      <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto">
+                        {allRoles.map((r) => (
+                          <button key={r.id} onClick={async () => { await gmAssignRole(manualAssignPlayer, r.id); setManualAssignPlayer(null); }}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98]"
+                            style={{ background: target?.role === r.id ? "rgba(201,160,48,0.1)" : "rgba(11,10,15,0.5)", borderColor: target?.role === r.id ? "rgba(201,160,48,0.4)" : "rgba(201,160,48,0.08)" }}>
+                            <span className="text-lg">{r.emoji}</span>
+                            <div>
+                              <p className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{r.name}</p>
+                              <p className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>{r.category}</p>
+                            </div>
+                            {target?.role === r.id && <span className="ml-auto text-[10px]" style={{ color: "var(--gold)" }}>✓</span>}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={() => setManualAssignPlayer(null)} className="mt-4 py-2.5 rounded-xl text-xs border" style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+                        Annuler
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+
+          {phase === "waiting" && !game.scanningRoles && (
             <div className="flex flex-col gap-3">
               <div className="rounded-xl p-4" style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.14)" }}>
                 <p className="text-[9px] font-mono uppercase tracking-widest mb-3" style={{ color: "var(--gold)" }}>
@@ -1487,10 +1566,136 @@ function DashboardScreen() {
   );
 }
 
+// ── Composant : Scan NFC ──────────────────────────────────────────────────────
+
+function NFCScanScreen({ playerName, gameName, onScan }: { playerName: string; gameName: string; onScan: (roleId: string) => Promise<void> }) {
+  const [status, setStatus] = useState<"idle" | "scanning" | "error" | "unsupported">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const startScan = async () => {
+    setStatus("scanning");
+    setErrorMsg(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const NDEFReader = (window as any).NDEFReader;
+    if (!NDEFReader) {
+      setStatus("unsupported");
+      return;
+    }
+    try {
+      abortRef.current = new AbortController();
+      const ndef = new NDEFReader();
+      await ndef.scan({ signal: abortRef.current.signal });
+      ndef.addEventListener("reading", async ({ message }: { message: { records: { data: DataView; recordType: string }[] } }) => {
+        for (const record of message.records) {
+          const text = new TextDecoder().decode(record.data).trim();
+          if (text && ROLES_MAP[text]) {
+            abortRef.current?.abort();
+            await onScan(text);
+            return;
+          }
+        }
+        setStatus("error");
+        setErrorMsg("Tag non reconnu. Vérifiez que la carte est une carte Lycan.");
+      });
+    } catch (e: unknown) {
+      if ((e as Error).name === "AbortError") return;
+      setStatus("error");
+      setErrorMsg("Erreur NFC : " + (e as Error).message);
+    }
+  };
+
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  return (
+    <div className="relative min-h-full flex flex-col items-center justify-center px-6 gap-8" style={{ background: "var(--bg-deep)" }}>
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.75)" }} />
+      </div>
+      <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-xs text-center">
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "rgba(201,160,48,0.5)" }}>{gameName}</p>
+        <div>
+          <p className="text-2xl font-bold mb-1" style={{ fontFamily: "Cinzel, serif", color: "#e8ddd0" }}>{playerName}</p>
+          <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>Distribution des rôles</p>
+        </div>
+
+        {/* Animation NFC */}
+        <div className="relative flex items-center justify-center" style={{ width: 140, height: 140 }}>
+          {status === "scanning" && (
+            <>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="absolute rounded-full border-2" style={{
+                  width: 60 + i * 30, height: 60 + i * 30,
+                  borderColor: "rgba(201,160,48,0.3)",
+                  animation: `ping 1.5s cubic-bezier(0,0,0.2,1) ${i * 0.3}s infinite`,
+                }} />
+              ))}
+            </>
+          )}
+          <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center" style={{
+            background: status === "scanning" ? "rgba(201,160,48,0.12)" : status === "error" ? "rgba(139,28,28,0.15)" : status === "unsupported" ? "rgba(99,102,241,0.1)" : "rgba(201,160,48,0.07)",
+            border: `2px solid ${status === "scanning" ? "rgba(201,160,48,0.4)" : status === "error" ? "rgba(248,113,113,0.35)" : status === "unsupported" ? "rgba(99,102,241,0.3)" : "rgba(201,160,48,0.2)"}`,
+            transition: "all 0.3s",
+          }}>
+            <span style={{ fontSize: 32 }}>{status === "error" ? "⚠️" : status === "unsupported" ? "📵" : "📱"}</span>
+          </div>
+        </div>
+
+        {status === "idle" && (
+          <>
+            <p className="text-sm leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+              Approche ta carte de ton téléphone pour découvrir ton rôle.
+            </p>
+            <button onClick={startScan}
+              className="w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.97]"
+              style={{ background: "rgba(201,160,48,0.12)", border: "1px solid rgba(201,160,48,0.35)", color: "#c9a030", fontFamily: "Cinzel, serif" }}>
+              Scanner ma carte
+            </button>
+          </>
+        )}
+
+        {status === "scanning" && (
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>Approche ta carte…</p>
+            <p className="text-[11px]" style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Maintiens la carte près du téléphone</p>
+            <button onClick={() => { abortRef.current?.abort(); setStatus("idle"); }}
+              className="mt-2 px-4 py-1.5 rounded-lg text-xs border" style={{ borderColor: "rgba(201,160,48,0.15)", color: "var(--text-muted)", fontFamily: "Cinzel, serif" }}>
+              Annuler
+            </button>
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className="flex flex-col items-center gap-3 w-full">
+            <p className="text-xs" style={{ color: "#f87171", fontFamily: "var(--font-mono)" }}>{errorMsg}</p>
+            <button onClick={() => setStatus("idle")}
+              className="w-full py-3 rounded-xl text-sm border transition-all"
+              style={{ borderColor: "rgba(248,113,113,0.3)", color: "#f87171", fontFamily: "Cinzel, serif" }}>
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {status === "unsupported" && (
+          <div className="flex flex-col items-center gap-3 w-full px-2">
+            <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+              NFC non disponible sur cet appareil ou ce navigateur.
+            </p>
+            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+              Demande au Maître du Jeu de t'assigner ton rôle manuellement.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Écran : Vue Joueur ────────────────────────────────────────────────────────
 
 function PlayerViewScreen() {
-  const { navigate, state, playerVote, corbeauSetTarget, chienLoupChoose } = useGame();
+  const { navigate, state, playerVote, corbeauSetTarget, chienLoupChoose, playerScanRole } = useGame();
   const pv = state.playerView;
   const [myVote, setMyVote] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
@@ -1513,6 +1718,44 @@ function PlayerViewScreen() {
   useEffect(() => {
     setScreenHidden(false);
   }, [pv?.phase]);
+
+  // ── Distribution NFC (avant tout) ───────────────────────────────────────────
+  if (state.game?.scanningRoles && pv) {
+    const hasRole = !!pv.player.role;
+    const roleData = pv.player.role ? ROLES_MAP[pv.player.role] : null;
+
+    if (hasRole && roleData) {
+      // Rôle scanné — confirmation
+      return (
+        <div className="relative min-h-full flex flex-col items-center justify-center px-6 gap-6" style={{ background: "var(--bg-deep)" }}>
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+            <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.7)" }} />
+          </div>
+          <div className="relative z-10 flex flex-col items-center gap-5 w-full max-w-xs">
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: "rgba(201,160,48,0.5)" }}>{pv.gameName}</p>
+            <div className="w-full rounded-2xl overflow-hidden border" style={{ border: "1px solid rgba(201,160,48,0.2)", background: "rgba(20,16,28,0.9)" }}>
+              <img src={`/lycan/roles/${pv.player.role?.replace(/_/g, "-")}.png`} alt={roleData.name}
+                className="w-full object-cover" style={{ maxHeight: 220 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <div className="p-5 text-center">
+                <p className="text-3xl mb-2">{roleData.emoji}</p>
+                <p className="text-xl font-bold mb-1" style={{ fontFamily: "Cinzel, serif", color: "#e8ddd0" }}>{roleData.name}</p>
+                <p className="text-xs leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>{roleData.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)" }}>
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#34d399" }} />
+              <p className="text-[11px] font-mono" style={{ color: "#34d399" }}>Rôle enregistré — en attente du lancement</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Pas encore de rôle — écran de scan NFC
+    return <NFCScanScreen playerName={pv.player.name} gameName={pv.gameName} onScan={playerScanRole} />;
+  }
 
   if (!pv) {
     return (

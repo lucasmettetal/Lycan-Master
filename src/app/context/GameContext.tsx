@@ -228,6 +228,9 @@ interface GameContextValue {
   gmComedienSetRoles: (roleIds: string[]) => Promise<void>;
   gmComedienChooseRole: (roleId: string) => Promise<void>;
   gmSetPlayerOrder: (order: string[]) => Promise<void>;
+  gmStartNight: () => Promise<void>;
+  playerScanRole: (roleId: string) => Promise<void>;
+  gmAssignRole: (playerId: string, roleId: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -412,10 +415,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const gmStart = async () => {
-    await _update((g) => {
-      const ng = assignRoles(g);
-      return { ...ng, status: "running" };
-    });
+    // Passe en mode distribution physique : les rôles seront scannés par les joueurs
+    await _update((g) => ({ ...g, scanningRoles: true }));
+  };
+
+  const gmStartNight = async () => {
+    // Démarre la partie et passe à la nuit 1 (appelé quand tous les rôles sont assignés)
+    await _update((g) => nextPhase({ ...g, status: "running" as const, scanningRoles: false }));
+  };
+
+  const playerScanRole = async (roleId: string) => {
+    const playerId = playerIdRef.current;
+    if (!playerId) return;
+    await _update((g) => ({
+      ...g,
+      players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId } : p),
+    }));
+  };
+
+  const gmAssignRole = async (playerId: string, roleId: string) => {
+    await _update((g) => ({
+      ...g,
+      players: g.players.map((p) => p.id === playerId ? { ...p, role: roleId } : p),
+    }));
   };
 
   const gmNextPhase = async () => {
@@ -1048,7 +1070,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
         gmPyromaniacSpray, gmPyromaniacPrepareIgnite,
         gmVoleurSetup, gmVoleurChoose, gmComedienSetRoles, gmComedienChooseRole,
-        gmSetPlayerOrder,
+        gmSetPlayerOrder, gmStartNight, playerScanRole, gmAssignRole,
       }}
     >
       {children}
