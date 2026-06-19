@@ -61,13 +61,13 @@ export interface GameState {
   phase: GamePhase;
   phaseNumber: number;
   status: "waiting" | "running" | "finished";
-  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | "pyromane" | null;
   players: Player[];
   selectedRoles: RoleConfig[];
   history: HistoryEvent[];
   witchPotions: { life: boolean; death: boolean };
   cupidLovers: string[];
-  nightActions: { wolvesTarget: string | null; witchSaved: boolean; witchKillTarget: string | null; salvatorTarget?: string | null; whitewolfTarget?: string | null; infectTarget?: string | null };
+  nightActions: { wolvesTarget: string | null; witchSaved: boolean; witchKillTarget: string | null; salvatorTarget?: string | null; whitewolfTarget?: string | null; infectTarget?: string | null; pyromaniacIgniting?: boolean };
   infectUsed?: boolean;
   lastSalvatorTarget?: string | null;
   sectaireTeam?: "wolves" | "village";
@@ -76,6 +76,7 @@ export interface GameState {
   foxPowerLost?: boolean;
   gitaneUsed?: boolean;
   enchanted?: string[];
+  oiled?: string[];
   pendingHunterActions: string[];
   pendingPlayerActions: PlayerAction[];
   votesByPlayer: Record<string, string>; // voterPlayerId → targetPlayerId
@@ -90,7 +91,7 @@ export interface PlayerView {
   gameName: string;
   phase: GamePhase;
   phaseNumber: number;
-  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | null;
+  winner?: "wolves" | "village" | "draw" | "angel" | "whitewolf" | "flute" | "pyromane" | null;
   player: {
     id: string;
     name: string;

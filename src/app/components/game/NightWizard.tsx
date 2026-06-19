@@ -6,7 +6,7 @@ import { ROLES, ROLES_MAP } from "../../../lib/roles";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "salvateur" | "whitewolf";
+type StepId = "cupid" | "enfant_sauvage" | "sectaire" | "seer" | "wolves" | "infect_pdl" | "witch" | "gitane" | "renard" | "joueur_flute" | "pyromane" | "salvateur" | "whitewolf";
 type StepMode = "manual" | "waiting" | "done";
 
 interface Step {
@@ -74,6 +74,11 @@ const STEP_META: Record<StepId, { img: string; title: string; narrative: string 
     title: "Le Joueur de Flûte s'éveille",
     narrative: "Sa mélodie envoûtante s'empare des âmes endormies.",
   },
+  pyromane: {
+    img: "/lycan/roles/villageois.png",
+    title: "Le Pyromane s'éveille",
+    narrative: "Il choisit sa prochaine victime… ou déclenche l'embrasement.",
+  },
   salvateur: {
     img: "/lycan/roles/villageois.png",
     title: "Le Salvateur veille",
@@ -118,6 +123,8 @@ function buildSteps(game: GameState): Step[] {
     steps.push({ id: "gitane", label: "Gitane", emoji: "🔮" });
   if (hasAliveRole("renard") && !game.foxPowerLost)
     steps.push({ id: "renard", label: "Renard", emoji: "🦊" });
+  if (hasAliveRole("pyromane"))
+    steps.push({ id: "pyromane", label: "Pyromane", emoji: "🔥" });
   if (hasAliveRole("joueur_flute")) {
     const enchanted = game.enchanted ?? [];
     const available = game.players.filter((p) => p.status !== "dead" && p.role !== "joueur_flute" && !enchanted.includes(p.id));
@@ -816,6 +823,132 @@ function SectaireStep({ game, onDone }: { game: GameState; onDone: () => void })
   );
 }
 
+// ── Étape Pyromane ────────────────────────────────────────────────────────────
+
+function PyromaneStep({ game, onDone }: { game: GameState; onDone: () => void }) {
+  const { gmPyromaniacSpray, gmPyromaniacPrepareIgnite } = useGame();
+  const [action, setAction] = useState<"choose" | "spray" | "ignite">("choose");
+  const [target, setTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const pyro = game.players.find((p) => p.role === "pyromane" && p.status !== "dead");
+  const oiled = game.oiled ?? [];
+  const alivePlayers = game.players.filter((p) => p.status !== "dead");
+
+  const handleSpray = async () => {
+    if (!target) return;
+    setLoading(true);
+    await gmPyromaniacSpray(target);
+    setDone(true);
+    setLoading(false);
+  };
+
+  const handleIgnite = async () => {
+    setLoading(true);
+    await gmPyromaniacPrepareIgnite();
+    setDone(true);
+    setLoading(false);
+  };
+
+  if (done) {
+    const sprayedName = action === "spray" ? game.players.find((p) => p.id === target)?.name : null;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-xl text-center" style={{
+          background: action === "ignite" ? "rgba(139,28,28,0.18)" : "rgba(201,160,48,0.07)",
+          border: `1px solid ${action === "ignite" ? "rgba(248,113,113,0.4)" : "rgba(201,160,48,0.2)"}`,
+        }}>
+          <p className="text-2xl mb-2">{action === "ignite" ? "💥" : "🔥"}</p>
+          <p className="text-sm" style={{ fontFamily: "Cinzel, serif", color: action === "ignite" ? "#f87171" : "#c9a030" }}>
+            {action === "ignite"
+              ? `Embrasement déclenché — ${oiled.length} joueur${oiled.length > 1 ? "s" : ""} brûleront à l'aube`
+              : `${sprayedName ?? "?"} aspergé(e) d'huile`}
+          </p>
+          {action === "ignite" && oiled.length > 0 && (
+            <p className="text-[10px] font-mono mt-1" style={{ color: "rgba(248,113,113,0.6)" }}>
+              {oiled.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(", ")}
+            </p>
+          )}
+        </div>
+        <NightButton onClick={onDone}>Suivant →</NightButton>
+      </div>
+    );
+  }
+
+  // Choose: spray vs ignite
+  if (action === "choose") {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-center" style={{ color: "var(--text-muted)" }}>
+          {pyro?.name ?? "?"} — que fait-il cette nuit ?
+        </p>
+        {oiled.length > 0 && (
+          <div className="px-3 py-2 rounded-lg" style={{ background: "rgba(201,160,48,0.05)", border: "1px solid rgba(201,160,48,0.12)" }}>
+            <p className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(201,160,48,0.6)" }}>Déjà huilés</p>
+            <p className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>
+              {oiled.map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(", ")}
+            </p>
+          </div>
+        )}
+        <button onClick={() => setAction("spray")}
+          className="w-full py-3.5 rounded-xl text-sm font-semibold border transition-all active:scale-95"
+          style={{ background: "rgba(201,160,48,0.08)", borderColor: "rgba(201,160,48,0.25)", color: "#c9a030", fontFamily: "Cinzel, serif" }}>
+          🔥 Asperger un joueur
+        </button>
+        <button onClick={() => setAction("ignite")} disabled={oiled.length === 0}
+          className="w-full py-3.5 rounded-xl text-sm font-semibold border transition-all active:scale-95 disabled:opacity-30"
+          style={{ background: "rgba(139,28,28,0.15)", borderColor: "rgba(248,113,113,0.35)", color: "#f87171", fontFamily: "Cinzel, serif" }}>
+          💥 Enflammer ! ({oiled.length} joueur{oiled.length !== 1 ? "s" : ""})
+        </button>
+      </div>
+    );
+  }
+
+  // Spray: player picker
+  if (action === "spray") {
+    return (
+      <div className="flex flex-col gap-3">
+        <PlayerPicker players={alivePlayers} selected={target} onSelect={setTarget} label="Joueur à asperger (peut être lui-même)" />
+        <NightButton onClick={handleSpray} disabled={!target || loading}>
+          {loading ? "..." : "🔥 Asperger ce joueur"}
+        </NightButton>
+        <button onClick={() => { setTarget(null); setAction("choose"); }}
+          className="py-2 rounded-xl text-xs border transition-all"
+          style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+          ← Retour
+        </button>
+      </div>
+    );
+  }
+
+  // Ignite: confirmation
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="p-3.5 rounded-xl" style={{ background: "rgba(139,28,28,0.1)", border: "1px solid rgba(248,113,113,0.25)" }}>
+        <p className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#f87171" }}>💥 Périront à l'aube</p>
+        {oiled.map((id) => {
+          const p = game.players.find((pl) => pl.id === id);
+          return (
+            <div key={id} className="flex items-center gap-2 py-0.5">
+              <span className="text-[10px]">🔥</span>
+              <span className="text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{p?.name ?? "?"}</span>
+            </div>
+          );
+        })}
+      </div>
+      <NightButton onClick={handleIgnite} disabled={loading}>
+        {loading ? "..." : "💥 Confirmer l'embrasement"}
+      </NightButton>
+      <button onClick={() => setAction("choose")}
+        className="py-2 rounded-xl text-xs border transition-all"
+        style={{ borderColor: "rgba(201,160,48,0.15)", color: "#9490a0", fontFamily: "Cinzel, serif" }}>
+        ← Retour
+      </button>
+    </div>
+  );
+}
+
 // ── Étape Joueur de Flûte ─────────────────────────────────────────────────────
 
 function JoueurFluteStep({ game, onDone }: { game: GameState; onDone: () => void }) {
@@ -1347,6 +1480,15 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
             </div>
           )}
 
+          {game.nightActions?.pyromaniacIgniting && (game.oiled ?? []).length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(139,28,28,0.12)", border: "1px solid rgba(248,113,113,0.25)" }}>
+              <span className="text-xl">💥</span>
+              <p className="text-sm" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "#c8c0b0" }}>
+                Embrasement : <strong style={{ color: "#f87171" }}>{(game.oiled ?? []).map((id) => game.players.find((p) => p.id === id)?.name ?? "?").join(", ")}</strong> brûleront
+              </p>
+            </div>
+          )}
+
           {(() => {
             const whitewolfKillId = game.nightActions?.whitewolfTarget;
             const whitewolfKillPlayer = whitewolfKillId ? game.players.find((p) => p.id === whitewolfKillId) : null;
@@ -1490,6 +1632,7 @@ export function NightWizard({ onResolve, phaseNumber = 1 }: { onResolve: () => v
         {currentStep.id === "witch" && <WitchStep game={game} onDone={advance} />}
         {currentStep.id === "gitane" && <GitaneStep game={game} onDone={advance} />}
         {currentStep.id === "renard" && <RenardStep game={game} onDone={advance} />}
+        {currentStep.id === "pyromane" && <PyromaneStep game={game} onDone={advance} />}
         {currentStep.id === "joueur_flute" && <JoueurFluteStep game={game} onDone={advance} />}
         {currentStep.id === "whitewolf" && <WhiteWolfStep game={game} onDone={advance} />}
       </div>

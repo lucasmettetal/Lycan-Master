@@ -30,6 +30,28 @@ import { ROLES_MAP } from "../../lib/roles";
 import { createId } from "../../lib/id";
 import type { GameState as GameStateType } from "../../lib/types";
 
+// ── Helper Pyromane ───────────────────────────────────────────────────────────
+// Victoire solo si Pyromane est le seul survivant
+function checkPyromaneWin(g: GameStateType): GameStateType {
+  if (g.status !== "running") return g;
+  const pyro = g.players.find((p) => p.role === "pyromane" && p.status !== "dead");
+  if (!pyro) return g;
+  const alive = g.players.filter((p) => p.status !== "dead");
+  if (alive.length === 1 && alive[0].id === pyro.id) {
+    const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return {
+      ...g,
+      status: "finished" as const,
+      winner: "pyromane" as const,
+      phase: "end" as const,
+      pendingHunterActions: [],
+      pendingPlayerActions: (g.pendingPlayerActions ?? []).map((a) => a.status === "pending" ? { ...a, status: "cancelled" as const } : a),
+      history: [...g.history, { id: Date.now().toString() + "py", type: "power" as const, text: `🔥 ${pyro.name} (Pyromane) est le dernier survivant — victoire solitaire !`, phase: "Fin de partie", time: now }],
+    };
+  }
+  return g;
+}
+
 // ── Helper Joueur de Flûte ────────────────────────────────────────────────────
 // Vérifie si tous les vivants (hors Flûte) sont ensorcelés → victoire solo
 function checkFluteWin(g: GameStateType): GameStateType {
@@ -199,6 +221,8 @@ interface GameContextValue {
   gmRenardInspect: (playerIds: string[]) => Promise<{ hasWolf: boolean }>;
   gmGitaneSwap: (targetId: string) => Promise<void>;
   gmFluteEnchant: (playerIds: string[]) => Promise<void>;
+  gmPyromaniacSpray: (targetId: string) => Promise<void>;
+  gmPyromaniacPrepareIgnite: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -422,6 +446,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           afterElim = applyWildChild(afterElim);
           if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
           if (afterElim.status === "running") afterElim = checkFluteWin(afterElim);
+          if (afterElim.status === "running") afterElim = checkPyromaneWin(afterElim);
           if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
           return nextPhase(afterElim);
         }
@@ -452,6 +477,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       afterElim = applyWildChild(afterElim);
       if (afterElim.status === "running") afterElim = checkWinCondition(afterElim);
       if (afterElim.status === "running") afterElim = checkFluteWin(afterElim);
+      if (afterElim.status === "running") afterElim = checkPyromaneWin(afterElim);
       if (afterElim.status === "finished" || (afterElim.pendingHunterActions ?? []).length > 0) return afterElim;
       return nextPhase(afterElim);
     });
@@ -463,6 +489,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       result = applyWildChild(result);
       if (result.status === "running") result = checkWinCondition(result);
       if (result.status === "running") result = checkFluteWin(result);
+      if (result.status === "running") result = checkPyromaneWin(result);
       return result;
     });
   };
@@ -487,6 +514,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       result = applyWildChild(result);
       if (result.status === "running") result = checkWinCondition(result);
       if (result.status === "running") result = checkFluteWin(result);
+      if (result.status === "running") result = checkPyromaneWin(result);
       return result;
     });
   };
@@ -564,6 +592,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await _update((g) => {
       let processed = { ...g };
 
+      // 0. Pyromane — embrasement (appliqué avant les loups pour clarté d'historique)
+      if (processed.nightActions.pyromaniacIgniting) {
+        const oiled = processed.oiled ?? [];
+        const pyro = processed.players.find((p) => p.role === "pyromane" && p.status !== "dead");
+        if (pyro && oiled.length > 0) {
+          processed = addHistoryEvent(processed, `🔥 ${pyro.name} (Pyromane) déclenche l'embrasement !`, "power");
+          for (const id of oiled) {
+            if (processed.players.find((p) => p.id === id && p.status !== "dead")) {
+              processed = killPlayer(processed, id, "night");
+            }
+          }
+        }
+        processed = { ...processed, oiled: [] };
+      }
+
       // 1. Infect Père des Loups — infecte la victime au lieu de la tuer
       const infectId = processed.nightActions.infectTarget ?? null;
       if (infectId && !processed.infectUsed) {
@@ -611,6 +654,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         result = applyWildChild(result);
         if (result.status === "running") result = checkWinCondition(result);
         if (result.status === "running") result = checkFluteWin(result);
+        if (result.status === "running") result = checkPyromaneWin(result);
       }
 
       // 6. Loup-Garou Blanc — victoire solitaire si dernier survivant
@@ -666,6 +710,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         })),
       };
     });
+  };
+
+  const gmPyromaniacSpray = async (targetId: string) => {
+    await _update((g) => {
+      const newOiled = [...new Set([...(g.oiled ?? []), targetId])];
+      return { ...g, oiled: newOiled };
+    });
+  };
+
+  const gmPyromaniacPrepareIgnite = async () => {
+    await _update((g) => ({ ...g, nightActions: { ...g.nightActions, pyromaniacIgniting: true } }));
   };
 
   const gmFluteEnchant = async (playerIds: string[]) => {
@@ -944,6 +999,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         gmSalvatorProtect, gmWhitewolfKill, gmInfectTarget,
         gmWildChildSetModel, gmSectaireChoose, gmJudgeTrigger,
         gmRenardInspect, gmGitaneSwap, gmFluteEnchant,
+        gmPyromaniacSpray, gmPyromaniacPrepareIgnite,
       }}
     >
       {children}
