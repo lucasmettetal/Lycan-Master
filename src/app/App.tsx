@@ -75,16 +75,23 @@ const PHASES: Record<string, {
 
 const ROLE_IMAGES: Record<string, string> = {
   werewolf:   "/lycan/roles/loup-garou.png",
-  bigbadwolf: "/lycan/roles/loup-garou.png",
+  bigbadwolf: "/lycan/roles/grand-mechant-loup.png",
   seer:       "/lycan/roles/voyante.png",
   witch:      "/lycan/roles/sorciere.png",
   hunter:     "/lycan/roles/chasseur.png",
   cupid:      "/lycan/roles/cupidon.png",
   villager:   "/lycan/roles/villageois.png",
-  littlegirl: "/lycan/roles/villageois.png",
-  elder:      "/lycan/roles/villageois.png",
-  captain:    "/lycan/roles/villageois.png",
+  littlegirl: "/lycan/roles/petite-fille.png",
+  elder:      "/lycan/roles/ancien.png",
+  captain:    "/lycan/roles/capitaine.png",
+  sectaire:   "/lycan/roles/abominable-sectaire.png",
+  chevalier:  "/lycan/roles/chevalier-epee-rouillee.png",
 };
+
+function getRoleImg(roleId: string | null | undefined): string {
+  if (!roleId) return "/lycan/roles/dos-carte.png";
+  return ROLE_IMAGES[roleId] ?? `/lycan/roles/${roleId.replace(/_/g, "-")}.png`;
+}
 
 // ── Composants partagés ────────────────────────────────────────────────────────
 
@@ -474,7 +481,11 @@ function NFCTestScreen() {
           )}
           {result && (
             <>
-              <span className="text-5xl">{result.ok ? result.role!.emoji : "❌"}</span>
+              {result.ok ? (
+                <img src={getRoleImg(result.text)} alt={result.role!.name}
+                  className="w-20 h-20 rounded-2xl object-cover object-top"
+                  onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+              ) : <span className="text-5xl">❌</span>}
               <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: result.ok ? "#34d399" : "#f87171" }}>
                 {result.ok ? result.role!.name : "Tag non reconnu"}
               </p>
@@ -1046,7 +1057,9 @@ function RolesScreen() {
               border: `1px solid ${!role.playable ? "rgba(255,255,255,0.06)" : role.count > 0 ? "rgba(139,28,28,0.38)" : "var(--gold-subtle)"}`,
               opacity: !role.playable ? 0.5 : 1,
             }}>
-            <div className="text-2xl flex-shrink-0 w-8 text-center">{role.emoji}</div>
+            <img src={getRoleImg(role.id)} alt={role.name}
+              className="w-8 h-8 rounded-lg object-cover object-top flex-shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{role.name}</p>
@@ -1110,7 +1123,9 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
             </div>
           ) : player.role ? (
             <div className="rounded-xl p-4 flex flex-col items-center gap-2" style={{ background: "linear-gradient(160deg, #1c1040, #0e0824)", border: "1px solid rgba(201,160,48,0.4)" }}>
-              <div className="text-3xl">{player.roleData?.emoji ?? "❓"}</div>
+              <img src={getRoleImg(player.role)} alt={player.roleData?.name}
+                className="w-20 h-20 rounded-xl object-cover object-top"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
               <p className="text-base font-bold text-[#c9a030]" style={{ fontFamily: "Cinzel, serif" }}>{player.roleData?.name ?? player.role}</p>
               <p className="text-xs text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{player.roleData?.description}</p>
               {player.isCapitaine && <span className="text-[9px] text-[#c9a030] font-mono">⚔️ Capitaine</span>}
@@ -1481,7 +1496,9 @@ function DashboardScreen() {
                             onClick={async () => { await gmTransferRole(p.id, servante.id); setServanteModal(false); }}
                             className="flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] border"
                             style={{ background: "rgba(11,10,15,0.7)", borderColor: "rgba(168,85,247,0.15)" }}>
-                            <span style={{ fontSize: 20 }}>{rd?.emoji ?? "❓"}</span>
+                            <img src={getRoleImg(p.role)} alt={rd?.name}
+                              className="w-10 h-10 rounded-lg object-cover object-top flex-shrink-0"
+                              onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
                             <div>
                               <p className="text-sm font-medium" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
                               <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{rd?.name ?? p.role}</p>
@@ -1644,9 +1661,12 @@ function DashboardScreen() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       {roleInfo ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-mono flex-shrink-0"
+                        <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-mono flex-shrink-0"
                           style={{ background: "rgba(201,160,48,0.1)", color: "var(--gold)", border: "1px solid rgba(201,160,48,0.15)" }}>
-                          {roleInfo.emoji} {roleInfo.name}
+                          <img src={getRoleImg(p.role)} alt=""
+                            className="w-3.5 h-3.5 rounded object-cover object-top"
+                            onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                          {roleInfo.name}
                         </span>
                       ) : (
                         <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>—</span>
@@ -1776,7 +1796,9 @@ function DashboardScreen() {
                     return (
                       <div key={rc.id} className="rounded-xl p-3" style={{ background: "rgba(11,10,15,0.6)", border: `1px solid ${occupants.length === rc.count ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.12)"}` }}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-base">{roleData?.emoji ?? "?"}</span>
+                          <img src={getRoleImg(rc.id)} alt={roleData?.name}
+                            className="w-6 h-6 rounded-md object-cover object-top flex-shrink-0"
+                            onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
                           <span className="flex-1 text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{roleData?.name ?? rc.id}</span>
                           <span className="text-[10px] font-mono" style={{ color: occupants.length === rc.count ? "#34d399" : "var(--text-muted)" }}>
                             {occupants.length}/{rc.count}
@@ -1818,8 +1840,11 @@ function DashboardScreen() {
                   const roleData = ROLES_MAP[assigningRoleId];
                   return (
                     <div className="absolute inset-0 z-50 flex flex-col px-5 py-8 overflow-y-auto" style={{ background: "rgba(11,10,15,0.95)", backdropFilter: "blur(6px)" }}>
-                      <h3 className="text-base font-bold mb-1 text-center" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>
-                        {roleData?.emoji} {roleData?.name}
+                      <h3 className="text-base font-bold mb-1 text-center flex items-center justify-center gap-2" style={{ fontFamily: "Cinzel, serif", color: "#c9a030" }}>
+                        <img src={getRoleImg(assigningRoleId)} alt=""
+                          className="w-7 h-7 rounded-lg object-cover object-top"
+                          onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                        {roleData?.name}
                       </h3>
                       <p className="text-[10px] font-mono text-center mb-4" style={{ color: "var(--text-muted)" }}>Choisir le joueur à assigner</p>
                       <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto">
@@ -2006,7 +2031,13 @@ function RolePickerScreen({
                   fontFamily: "Cinzel, serif",
                 }}
               >
-                <span className="text-2xl">{isLoading ? "⏳" : role.emoji}</span>
+                {isLoading ? (
+                  <span className="text-2xl">⏳</span>
+                ) : (
+                  <img src={getRoleImg(roleId)} alt={role.name}
+                    className="w-14 h-14 rounded-xl object-cover object-top"
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                )}
                 <span className="text-xs font-semibold text-center leading-tight" style={{ color: "var(--text-primary)" }}>
                   {role.name}
                 </span>
@@ -2224,7 +2255,6 @@ function PlayerViewScreen() {
                 className="w-full object-cover" style={{ maxHeight: 220 }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <div className="p-5 text-center">
-                <p className="text-3xl mb-2">{roleData.emoji}</p>
                 <p className="text-xl font-bold mb-1" style={{ fontFamily: "Cinzel, serif", color: "#e8ddd0" }}>{roleData.name}</p>
                 <p className="text-xs leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>{roleData.description}</p>
               </div>
@@ -2335,7 +2365,9 @@ function PlayerViewScreen() {
           >
             {reveal && roleInfo ? (
               <>
-                <span style={{ fontSize: "30px" }}>{roleInfo.emoji}</span>
+                <img src={getRoleImg(player.role ?? undefined)} alt={roleInfo.name}
+                  style={{ width: 72, height: 72, borderRadius: 14, objectFit: "cover", objectPosition: "center top" }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
                 <p style={{ color: "rgba(201,160,48,0.65)", fontSize: "15px", fontFamily: "var(--font-display)", textAlign: "center" }}>{roleInfo.name}</p>
                 <p style={{ color: "rgba(200,192,176,0.35)", fontSize: "10px", fontFamily: "var(--font-body)", fontStyle: "italic", textAlign: "center", lineHeight: 1.4 }}>{roleInfo.description}</p>
               </>
@@ -2415,7 +2447,7 @@ function PlayerViewScreen() {
   };
   const bgImage = phaseImages[phase as string] ?? "/lycan/village-night.png";
 
-  const roleImg = player.role ? (ROLE_IMAGES[player.role as string] ?? null) : null;
+  const roleImg = player.role ? getRoleImg(player.role as string) : null;
 
   return (
     <div className="relative min-h-full flex flex-col pb-8" style={{ background: "var(--bg-deep)" }}>
@@ -2488,22 +2520,16 @@ function PlayerViewScreen() {
             style={{ border: "1px solid var(--gold-dim)", boxShadow: "0 0 40px rgba(139,28,28,0.2), 0 0 0 1px var(--gold-subtle)" }}>
 
             {/* Illustration (style carte de tarot) */}
-            {roleImg ? (
-              <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1 / 1", maxHeight: "260px" }}>
-                <img
-                  src={roleImg}
-                  alt={player.roleData?.name ?? player.role ?? ""}
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
-                />
-                <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(0deg, rgba(14,8,36,1) 0%, transparent 100%)" }} />
-                <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--gold-dim), transparent)" }} />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-10"
-                style={{ background: "linear-gradient(160deg, rgba(28,16,64,0.95), rgba(14,8,36,0.95))" }}>
-                <span className="text-7xl">{player.roleData?.emoji ?? "❓"}</span>
-              </div>
-            )}
+            <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1 / 1", maxHeight: "260px" }}>
+              <img
+                src={roleImg ?? "/lycan/roles/dos-carte.png"}
+                alt={player.roleData?.name ?? player.role ?? ""}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }}
+              />
+              <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(0deg, rgba(14,8,36,1) 0%, transparent 100%)" }} />
+              <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--gold-dim), transparent)" }} />
+            </div>
 
             {/* Infos de rôle */}
             <div className="px-5 pb-5 pt-3 flex flex-col gap-3"
@@ -2562,7 +2588,7 @@ function PlayerViewScreen() {
                 <div className="flex flex-col gap-2">
                   {state.game.players.map((p) => {
                     const roleData = ROLES_MAP[p.role ?? ""] ?? null;
-                    const img = p.role ? (ROLE_IMAGES[p.role] ?? null) : null;
+                    const img = p.role ? getRoleImg(p.role) : null;
                     const isDead = p.status === "dead";
                     const isWolf = roleData?.category === "wolves";
                     const isMe = p.id === player.id;
@@ -2579,10 +2605,9 @@ function PlayerViewScreen() {
                         {/* Miniature rôle */}
                         <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
                           style={{ background: "rgba(11,10,15,0.8)", border: "1px solid rgba(201,160,48,0.12)" }}>
-                          {img
-                            ? <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", filter: isDead ? "grayscale(60%) brightness(0.6)" : undefined }} />
-                            : <span style={{ fontSize: 18 }}>{roleData?.emoji ?? "❓"}</span>
-                          }
+                          <img src={img ?? "/lycan/roles/dos-carte.png"} alt=""
+                            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", filter: isDead ? "grayscale(60%) brightness(0.6)" : undefined }}
+                            onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
                         </div>
                         {/* Nom + rôle */}
                         <div className="flex-1 min-w-0">
@@ -2866,7 +2891,11 @@ function VoteScreen() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       <p className="text-sm font-medium truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{p.name}</p>
-                      {roleInfo && <span className="text-[10px] font-mono flex-shrink-0" style={{ color: "var(--text-muted)" }}>{roleInfo.emoji}</span>}
+                      {roleInfo && p.role && (
+                        <img src={getRoleImg(p.role)} alt={roleInfo.name}
+                          className="w-4 h-4 rounded object-cover object-top flex-shrink-0"
+                          onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                      )}
                       {isLeader && (
                         <span className="text-[8px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0"
                           style={{ background: "rgba(139,28,28,0.3)", color: "#f87171" }}>

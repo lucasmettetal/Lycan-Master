@@ -180,10 +180,23 @@ export function PlayerActionCard({
       {/* En-tête */}
       <div className="flex items-start gap-2">
         <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5"
-          style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}
+          className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 mt-0.5"
+          style={{ border: `1px solid ${accentColor}35` }}
         >
-          {{ seer_choose_target: "🔮", cupid_choose_lovers: "💘", witch_choose_potions: "⚗️", hunter_choose_target: "🏹", day_vote: "🗳️", flute_enchant: "🎵", corbeau_accuse: "🐦‍⬛", chien_loup_choose: "🐕" }[action.type]}
+          <img
+            src={({
+              seer_choose_target:  "/lycan/roles/voyante.png",
+              cupid_choose_lovers: "/lycan/roles/cupidon.png",
+              witch_choose_potions:"/lycan/roles/sorciere.png",
+              hunter_choose_target:"/lycan/roles/chasseur.png",
+              day_vote:            "/lycan/roles/villageois.png",
+              flute_enchant:       "/lycan/roles/joueur-flute.png",
+              corbeau_accuse:      "/lycan/roles/corbeau.png",
+              chien_loup_choose:   "/lycan/roles/chien-loup.png",
+            } as Record<string, string>)[action.type] ?? "/lycan/roles/dos-carte.png"}
+            alt=""
+            className="w-full h-full object-cover object-top"
+          />
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#e8ddd0]" style={{ fontFamily: "Cinzel, serif" }}>
