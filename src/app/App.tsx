@@ -482,9 +482,11 @@ function NFCTestScreen() {
           {result && (
             <>
               {result.ok ? (
-                <img src={getRoleImg(result.text)} alt={result.role!.name}
-                  className="w-20 h-20 rounded-2xl object-cover object-top"
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                <div className="rounded-2xl overflow-hidden" style={{ width: 120, aspectRatio: "3/4", background: "rgba(11,10,15,0.8)" }}>
+                  <img src={getRoleImg(result.text)} alt={result.role!.name}
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                </div>
               ) : <span className="text-5xl">❌</span>}
               <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: result.ok ? "#34d399" : "#f87171" }}>
                 {result.ok ? result.role!.name : "Tag non reconnu"}
@@ -1061,7 +1063,7 @@ function RolesScreen() {
         {categories.map((cat) => (
           <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="flex-1 py-2 rounded-xl text-xs font-medium transition-all border"
             style={{ fontFamily: "var(--font-title)", background: activeCategory === cat.id ? "var(--red-wolf-dim)" : "transparent", borderColor: activeCategory === cat.id ? "rgba(139,28,28,0.75)" : "var(--gold-subtle)", color: activeCategory === cat.id ? "var(--text-primary)" : "var(--text-muted)", letterSpacing: "0.03em", fontSize: "11px" }}>
-            {cat.emoji} {cat.label}
+            {cat.label}
           </button>
         ))}
       </div>
@@ -1075,9 +1077,11 @@ function RolesScreen() {
               border: `1px solid ${!role.playable ? "rgba(255,255,255,0.06)" : role.count > 0 ? "rgba(139,28,28,0.38)" : "var(--gold-subtle)"}`,
               opacity: !role.playable ? 0.5 : 1,
             }}>
-            <img src={getRoleImg(role.id)} alt={role.name}
-              className="w-8 h-8 rounded-lg object-cover object-top flex-shrink-0"
-              onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+            <div className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 40, height: 54 }}>
+              <img src={getRoleImg(role.id)} alt={role.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold truncate" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>{role.name}</p>
@@ -1141,9 +1145,11 @@ function SimulatedPlayerModal({ game, playerId, onClose }: {
             </div>
           ) : player.role ? (
             <div className="rounded-xl p-4 flex flex-col items-center gap-2" style={{ background: "linear-gradient(160deg, #1c1040, #0e0824)", border: "1px solid rgba(201,160,48,0.4)" }}>
-              <img src={getRoleImg(player.role)} alt={player.roleData?.name}
-                className="w-20 h-20 rounded-xl object-cover object-top"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+              <div className="rounded-xl overflow-hidden" style={{ width: 80, aspectRatio: "3/4" }}>
+                <img src={getRoleImg(player.role)} alt={player.roleData?.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+              </div>
               <p className="text-base font-bold text-[#c9a030]" style={{ fontFamily: "Cinzel, serif" }}>{player.roleData?.name ?? player.role}</p>
               <p className="text-xs text-[#9490a0] text-center" style={{ fontFamily: "Crimson Pro, Georgia, serif" }}>{player.roleData?.description}</p>
               {player.isCapitaine && <span className="text-[9px] text-[#c9a030] font-mono">⚔️ Capitaine</span>}
@@ -1812,34 +1818,38 @@ function DashboardScreen() {
                     const occupants = playersByRole[rc.id] ?? [];
                     const emptySlots = rc.count - occupants.length;
                     return (
-                      <div key={rc.id} className="rounded-xl p-3" style={{ background: "rgba(11,10,15,0.6)", border: `1px solid ${occupants.length === rc.count ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.12)"}` }}>
-                        <div className="flex items-center gap-2 mb-2">
+                      <div key={rc.id} className="rounded-xl overflow-hidden flex" style={{ background: "rgba(11,10,15,0.6)", border: `1px solid ${occupants.length === rc.count ? "rgba(52,211,153,0.2)" : "rgba(201,160,48,0.12)"}` }}>
+                        {/* Image portrait à gauche */}
+                        <div className="flex-shrink-0" style={{ width: 52, minHeight: 70 }}>
                           <img src={getRoleImg(rc.id)} alt={roleData?.name}
-                            className="w-6 h-6 rounded-md object-cover object-top flex-shrink-0"
+                            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
                             onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
-                          <span className="flex-1 text-xs" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{roleData?.name ?? rc.id}</span>
-                          <span className="text-[10px] font-mono" style={{ color: occupants.length === rc.count ? "#34d399" : "var(--text-muted)" }}>
-                            {occupants.length}/{rc.count}
-                          </span>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {/* Joueurs déjà assignés */}
-                          {occupants.map((p) => (
-                            <button key={p.id}
-                              onClick={async () => { await gmAssignRole(p.id, null); }}
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
-                              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#a0f0c8", fontFamily: "Cinzel, serif" }}>
-                              {p.name} <span style={{ color: "rgba(248,113,113,0.7)" }}>×</span>
-                            </button>
-                          ))}
-                          {/* Slots vides */}
-                          {emptySlots > 0 && (
-                            <button onClick={() => setAssigningRoleId(rc.id)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
-                              style={{ border: "1px dashed rgba(201,160,48,0.3)", color: "rgba(201,160,48,0.6)", fontFamily: "Cinzel, serif" }}>
-                              + {emptySlots > 1 ? `${emptySlots} à assigner` : "Assigner"}
-                            </button>
-                          )}
+                        {/* Contenu à droite */}
+                        <div className="flex-1 min-w-0 p-2.5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold truncate" style={{ fontFamily: "Cinzel, serif", color: "#c8c0b0" }}>{roleData?.name ?? rc.id}</span>
+                            <span className="text-[10px] font-mono flex-shrink-0 ml-1" style={{ color: occupants.length === rc.count ? "#34d399" : "var(--text-muted)" }}>
+                              {occupants.length}/{rc.count}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {occupants.map((p) => (
+                              <button key={p.id}
+                                onClick={async () => { await gmAssignRole(p.id, null); }}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
+                                style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#a0f0c8", fontFamily: "Cinzel, serif" }}>
+                                {p.name} <span style={{ color: "rgba(248,113,113,0.7)" }}>×</span>
+                              </button>
+                            ))}
+                            {emptySlots > 0 && (
+                              <button onClick={() => setAssigningRoleId(rc.id)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all active:scale-[0.97]"
+                                style={{ border: "1px dashed rgba(201,160,48,0.3)", color: "rgba(201,160,48,0.6)", fontFamily: "Cinzel, serif" }}>
+                                + {emptySlots > 1 ? `${emptySlots} à assigner` : "Assigner"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -2052,9 +2062,11 @@ function RolePickerScreen({
                 {isLoading ? (
                   <span className="text-2xl">⏳</span>
                 ) : (
-                  <img src={getRoleImg(roleId)} alt={role.name}
-                    className="w-14 h-14 rounded-xl object-cover object-top"
-                    onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                  <div className="w-full rounded-xl overflow-hidden" style={{ aspectRatio: "3/4", maxHeight: 100 }}>
+                    <img src={getRoleImg(roleId)} alt={role.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+                      onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                  </div>
                 )}
                 <span className="text-xs font-semibold text-center leading-tight" style={{ color: "var(--text-primary)" }}>
                   {role.name}
@@ -2383,9 +2395,11 @@ function PlayerViewScreen() {
           >
             {reveal && roleInfo ? (
               <>
-                <img src={getRoleImg(player.role ?? undefined)} alt={roleInfo.name}
-                  style={{ width: 72, height: 72, borderRadius: 14, objectFit: "cover", objectPosition: "center top" }}
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                <div style={{ width: 72, aspectRatio: "3/4", borderRadius: 14, overflow: "hidden" }}>
+                  <img src={getRoleImg(player.role ?? undefined)} alt={roleInfo.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
+                </div>
                 <p style={{ color: "rgba(201,160,48,0.65)", fontSize: "15px", fontFamily: "var(--font-display)", textAlign: "center" }}>{roleInfo.name}</p>
                 <p style={{ color: "rgba(200,192,176,0.35)", fontSize: "10px", fontFamily: "var(--font-body)", fontStyle: "italic", textAlign: "center", lineHeight: 1.4 }}>{roleInfo.description}</p>
               </>
