@@ -465,38 +465,50 @@ function NFCTestScreen() {
           </div>
         </div>
 
-        <div
-          className="flex flex-col items-center justify-center gap-4 py-12 rounded-2xl border"
-          style={{ background: "rgba(22,20,31,0.85)", borderColor: !result ? "rgba(201,160,48,0.2)" : result.ok ? "rgba(52,211,153,0.35)" : "rgba(239,68,68,0.35)" }}
-        >
-          {!result && !scanning && <span className="text-5xl opacity-40">📡</span>}
-          {!result && scanning && (
-            <>
-              <span className="text-5xl animate-pulse">📡</span>
-              <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "var(--gold)" }}>Approche une carte NFC</p>
-              <p className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-                {mode === "webapi" ? "Web NFC actif" : "En attente du tag…"}
+        {/* Zone de résultat — même carte que la confirmation en partie */}
+        {result?.ok ? (
+          <div className="w-full rounded-2xl overflow-hidden border" style={{ border: "1px solid rgba(201,160,48,0.2)", background: "rgba(20,16,28,0.9)" }}>
+            <img
+              src={getRoleImg(result.text)}
+              alt={result.role!.name}
+              className="w-full object-cover"
+              style={{ maxHeight: 220 }}
+              onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }}
+            />
+            <div className="px-5 pt-4 pb-5 text-center">
+              <p className="text-xs leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>
+                {result.role!.description}
               </p>
-            </>
-          )}
-          {result && (
-            <>
-              {result.ok ? (
-                <div className="rounded-2xl overflow-hidden" style={{ width: 120, aspectRatio: "3/4", background: "rgba(11,10,15,0.8)" }}>
-                  <img src={getRoleImg(result.text)} alt={result.role!.name}
-                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                    onError={(e) => { (e.target as HTMLImageElement).src = "/lycan/roles/dos-carte.png"; }} />
-                </div>
-              ) : <span className="text-5xl">❌</span>}
-              <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: result.ok ? "#34d399" : "#f87171" }}>
-                {result.ok ? result.role!.name : "Tag non reconnu"}
-              </p>
-              <p className="text-[11px] font-mono px-3 py-1.5 rounded-lg" style={{ background: "rgba(11,10,15,0.6)", color: "var(--text-muted)" }}>
-                ID lu : <span style={{ color: result.ok ? "#34d399" : "#f87171" }}>{result.text || "(vide)"}</span>
-              </p>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        ) : result ? (
+          <div className="flex flex-col items-center gap-3 py-10 rounded-2xl border" style={{ background: "rgba(22,20,31,0.85)", borderColor: "rgba(239,68,68,0.35)" }}>
+            <span className="text-5xl">❌</span>
+            <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "#f87171" }}>Tag non reconnu</p>
+            <p className="text-[11px] font-mono px-3 py-1.5 rounded-lg" style={{ background: "rgba(11,10,15,0.6)", color: "var(--text-muted)" }}>
+              ID lu : <span style={{ color: "#f87171" }}>{result.text || "(vide)"}</span>
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-12 rounded-2xl border" style={{ background: "rgba(22,20,31,0.85)", borderColor: scanning ? "rgba(201,160,48,0.25)" : "rgba(201,160,48,0.1)" }}>
+            <span className={`text-5xl${scanning ? " animate-pulse" : " opacity-40"}`}>📡</span>
+            {scanning && (
+              <>
+                <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "var(--gold)" }}>Approche une carte NFC</p>
+                <p className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+                  {mode === "webapi" ? "Web NFC actif" : "En attente du tag…"}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ID lu en petit pour vérification */}
+        {result?.ok && (
+          <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.35)" }}>
+            ID : {result.text}
+          </p>
+        )}
 
         {!scanning && !result && (
           <button onClick={startScan}
@@ -513,9 +525,16 @@ function NFCTestScreen() {
           </button>
         )}
 
-        <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.35)" }}>
-          {result?.ok ? "✓ Reconnue" : result ? "✗ ID introuvable — vérifier l'encodage dans NFC Tools" : "Appuie sur Démarrer puis approche la carte"}
-        </p>
+        {!result && !scanning && (
+          <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.35)" }}>
+            Appuie sur Démarrer puis approche la carte
+          </p>
+        )}
+        {result && !result.ok && (
+          <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.35)" }}>
+            ✗ ID introuvable — vérifier l'encodage dans NFC Tools
+          </p>
+        )}
       </div>
     </div>
   );
@@ -2284,8 +2303,7 @@ function PlayerViewScreen() {
               <img src={`/lycan/roles/${pv.player.role?.replace(/_/g, "-")}.png`} alt={roleData.name}
                 className="w-full object-cover" style={{ maxHeight: 220 }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              <div className="p-5 text-center">
-                <p className="text-xl font-bold mb-1" style={{ fontFamily: "Cinzel, serif", color: "#e8ddd0" }}>{roleData.name}</p>
+              <div className="px-5 pt-4 pb-5 text-center">
                 <p className="text-xs leading-relaxed" style={{ fontFamily: "Crimson Pro, Georgia, serif", color: "var(--text-muted)" }}>{roleData.description}</p>
               </div>
             </div>
