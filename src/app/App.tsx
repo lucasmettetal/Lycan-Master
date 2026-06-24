@@ -384,19 +384,63 @@ function NFCTestScreen() {
   const { navigate } = useGame();
   type TestResult = { text: string; role: typeof ROLES_MAP[string] | null; ok: boolean };
   const [result, setResult] = useState<TestResult | null>(null);
-  const [listening, setListening] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [mode, setMode] = useState<"idle" | "webapi" | "native">("idle");
+  const abortRef = useRef<AbortController | null>(null);
+  const doneRef = useRef(false);
 
+  const processTag = (text: string) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    abortRef.current?.abort();
+    setResult({ text, role: ROLES_MAP[text] ?? null, ok: !!ROLES_MAP[text] });
+    setScanning(false);
+  };
+
+  const reset = () => {
+    doneRef.current = false;
+    abortRef.current?.abort();
+    setResult(null);
+    setScanning(false);
+    setMode("idle");
+  };
+
+  const startScan = async () => {
+    reset();
+    doneRef.current = false;
+    setScanning(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const NDEFReader = (window as any).NDEFReader;
+    if (NDEFReader) {
+      try {
+        abortRef.current = new AbortController();
+        const ndef = new NDEFReader();
+        await ndef.scan({ signal: abortRef.current.signal });
+        ndef.addEventListener("reading", ({ message }: { message: { records: { data: DataView }[] } }) => {
+          for (const record of message.records) {
+            const text = new TextDecoder().decode(record.data).trim();
+            if (text) { processTag(text); return; }
+          }
+        });
+        setMode("webapi");
+        return;
+      } catch { /* fallback */ }
+    }
+    setMode("native");
+  };
+
+  // Écoute l'événement natif (foreground dispatch APK)
   useEffect(() => {
-    if (!listening) return;
+    if (!scanning) return;
     const handler = (e: Event) => {
       const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim() ?? "";
-      const role = ROLES_MAP[text] ?? null;
-      setResult({ text, role, ok: !!role });
-      setListening(false);
+      processTag(text);
     };
     window.addEventListener("nfc-tag", handler);
     return () => window.removeEventListener("nfc-tag", handler);
-  }, [listening]);
+  }, [scanning]);
+
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   return (
     <div className="relative min-h-full flex flex-col" style={{ background: "var(--bg-deep)" }}>
@@ -407,25 +451,28 @@ function NFCTestScreen() {
 
       <div className="relative z-10 px-5 py-6 max-w-sm mx-auto flex flex-col gap-6">
         <div className="flex items-center gap-3">
-          <BackButton onClick={() => navigate("home")} />
+          <BackButton onClick={() => { abortRef.current?.abort(); navigate("home"); }} />
           <div>
             <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>Test des cartes NFC</h2>
             <p className="text-[10px] font-mono uppercase tracking-widest mt-0.5" style={{ color: "var(--text-muted)" }}>Vérifie chaque tag</p>
           </div>
         </div>
 
-        {/* Zone de scan */}
         <div
           className="flex flex-col items-center justify-center gap-4 py-12 rounded-2xl border"
-          style={{ background: "rgba(22,20,31,0.85)", borderColor: listening ? "rgba(201,160,48,0.25)" : result?.ok ? "rgba(52,211,153,0.35)" : "rgba(239,68,68,0.35)" }}
+          style={{ background: "rgba(22,20,31,0.85)", borderColor: !result ? "rgba(201,160,48,0.2)" : result.ok ? "rgba(52,211,153,0.35)" : "rgba(239,68,68,0.35)" }}
         >
-          {listening ? (
+          {!result && !scanning && <span className="text-5xl opacity-40">📡</span>}
+          {!result && scanning && (
             <>
               <span className="text-5xl animate-pulse">📡</span>
               <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "var(--gold)" }}>Approche une carte NFC</p>
-              <p className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>En attente du tag…</p>
+              <p className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+                {mode === "webapi" ? "Web NFC actif" : "En attente du tag…"}
+              </p>
             </>
-          ) : result ? (
+          )}
+          {result && (
             <>
               <span className="text-5xl">{result.ok ? result.role!.emoji : "❌"}</span>
               <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: result.ok ? "#34d399" : "#f87171" }}>
@@ -435,21 +482,26 @@ function NFCTestScreen() {
                 ID lu : <span style={{ color: result.ok ? "#34d399" : "#f87171" }}>{result.text || "(vide)"}</span>
               </p>
             </>
-          ) : null}
+          )}
         </div>
 
-        {!listening && (
-          <button
-            onClick={() => { setResult(null); setListening(true); }}
+        {!scanning && !result && (
+          <button onClick={startScan}
             className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95"
-            style={{ background: "rgba(201,160,48,0.12)", border: "1px solid rgba(201,160,48,0.3)", color: "var(--gold)", fontFamily: "Cinzel, serif" }}
-          >
+            style={{ background: "linear-gradient(180deg,#b52828,#8b1c1c)", border: "1px solid rgba(201,160,48,0.32)", color: "var(--text-primary)", fontFamily: "Cinzel, serif" }}>
+            Démarrer le scan
+          </button>
+        )}
+        {result && (
+          <button onClick={reset}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95"
+            style={{ background: "rgba(201,160,48,0.12)", border: "1px solid rgba(201,160,48,0.3)", color: "var(--gold)", fontFamily: "Cinzel, serif" }}>
             Tester une autre carte →
           </button>
         )}
 
-        <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.4)" }}>
-          {result?.ok ? "✓ Carte reconnue dans la base de rôles" : listening ? "Le foreground dispatch Android est actif" : "✗ Cet ID n'existe pas dans les rôles — vérifier l'encodage"}
+        <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.35)" }}>
+          {result?.ok ? "✓ Reconnue" : result ? "✗ ID introuvable — vérifier l'encodage dans NFC Tools" : "Appuie sur Démarrer puis approche la carte"}
         </p>
       </div>
     </div>
