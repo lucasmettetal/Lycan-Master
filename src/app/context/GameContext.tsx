@@ -173,7 +173,7 @@ interface GameContextValue {
   gmCreate: (name: string, playerCount: number, mode: GameMode) => Promise<string>;
   gmAddPlayer: (playerName: string) => Promise<void>;
   gmRemovePlayer: (playerId: string) => Promise<void>;
-  gmAddTestPlayers: () => Promise<void>;
+  gmAddTestPlayers: (count: number) => Promise<void>;
   gmSetRoles: (roles: RoleConfig[]) => Promise<void>;
   gmStart: () => Promise<void>;
   gmNextPhase: () => Promise<void>;
@@ -377,22 +377,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await _update((g) => ({ ...g, players: g.players.filter((p) => p.id !== playerId) }));
   };
 
-  const gmAddTestPlayers = async () => {
-    console.log("[Test] Ajout joueurs test — session:", gameIdRef.current ?? "AUCUNE");
-    if (!gameIdRef.current || !gameRef.current) {
-      console.warn("[Test] Aucune session active — crée d'abord une partie.");
-      return;
-    }
-    const TEST_NAMES = ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Hugo"];
+  const gmAddTestPlayers = async (count: number) => {
+    if (!gameIdRef.current || !gameRef.current) return;
+    const TEST_NAMES = ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Hugo", "Iris", "Jules", "Karim", "Léa", "Maxime", "Nina", "Oscar", "Paloma"];
     await _update((g) => {
-      console.log("[Test] Joueurs avant:", g.players.length);
       const existing = new Set(g.players.map((p) => p.name));
-      const toAdd = TEST_NAMES.filter((n) => !existing.has(n));
-      console.log("[Test] Noms à ajouter:", toAdd);
-      if (toAdd.length === 0) {
-        console.log("[Test] Tous les noms existent déjà.");
-        return g;
-      }
+      const toAdd = TEST_NAMES.filter((n) => !existing.has(n)).slice(0, count);
+      if (toAdd.length === 0) return g;
       const newPlayers: Player[] = toAdd.map((name) => ({
         id: createId("player"),
         name,
@@ -405,11 +396,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         votes: 0,
         lastSeenAt: null,
       }));
-      const next = { ...g, players: [...g.players, ...newPlayers] };
-      console.log("[Test] Joueurs après:", next.players.length);
-      return next;
+      return { ...g, players: [...g.players, ...newPlayers] };
     });
-    console.log("[Test] Supabase update terminé");
   };
 
   const gmSetRoles = async (roles: RoleConfig[]) => {

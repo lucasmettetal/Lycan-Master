@@ -800,6 +800,7 @@ function PlayersScreen() {
   const { navigate, state, gmAddPlayer, gmRemovePlayer, gmAddTestPlayers, setError } = useGame();
   const [newName, setNewName] = useState("");
   const [addingTest, setAddingTest] = useState(false);
+  const [testCount, setTestCount] = useState(6);
   const [showStaticQR, setShowStaticQR] = useState(false);
 
   const players = state.game?.players ?? [];
@@ -949,26 +950,43 @@ function PlayersScreen() {
         </div>
 
         {/* Joueurs de test */}
-        {(
+        <div className="mb-4 rounded-xl border border-dashed overflow-hidden" style={{ borderColor: "rgba(201,160,48,0.18)" }}>
+          {/* Sélecteur de nombre */}
+          <div className="flex items-center gap-0 border-b" style={{ borderColor: "rgba(201,160,48,0.12)" }}>
+            <span className="text-[10px] font-mono px-3 py-1.5 flex-shrink-0" style={{ color: "var(--text-muted)" }}>Bots :</span>
+            <div className="flex flex-1">
+              {[3,4,5,6,7,8,10,12].map((n) => (
+                <button key={n} onClick={() => setTestCount(n)}
+                  className="flex-1 py-1.5 text-[10px] font-mono transition-all"
+                  style={{
+                    background: testCount === n ? "rgba(201,160,48,0.15)" : "transparent",
+                    color: testCount === n ? "var(--gold)" : "var(--text-muted)",
+                    fontWeight: testCount === n ? 700 : 400,
+                  }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Bouton d'ajout */}
           <button
             disabled={addingTest}
             onClick={async () => {
-              console.log("[Test] Clic Ajouter joueurs test");
               setAddingTest(true);
               try {
-                await gmAddTestPlayers();
+                await gmAddTestPlayers(testCount);
               } catch (e: unknown) {
                 setError((e as Error).message ?? "Erreur ajout joueurs test");
               } finally {
                 setAddingTest(false);
               }
             }}
-            className="w-full mb-4 py-2.5 rounded-xl flex items-center justify-center gap-2 border border-dashed transition-all active:scale-95 text-xs font-mono tracking-wide disabled:opacity-40"
-            style={{ borderColor: "rgba(201,160,48,0.18)", color: "var(--text-muted)" }}
+            className="w-full py-2.5 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs font-mono tracking-wide disabled:opacity-40"
+            style={{ color: "var(--text-muted)" }}
           >
-            {addingTest ? "⏳ Ajout en cours…" : "🧪 Créer joueurs de test (Alice–Frank)"}
+            {addingTest ? "⏳ Ajout en cours…" : `🧪 Ajouter ${testCount} joueurs test`}
           </button>
-        )}
+        </div>
 
         <PrimaryButton onClick={() => navigate("roles")}>Lancer les rôles →</PrimaryButton>
       </div>
