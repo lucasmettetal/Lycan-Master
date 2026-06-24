@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { StatusBar } from "@capacitor/status-bar";
 import { ArrowLeft, Plus, Crown, History, Trash2, Wifi, WifiOff, Eye } from "lucide-react";
 import { LycanLogo } from "./components/brand/LycanLogo";
 import { GameProvider, useGame, type GamePhase, type PlayerStatus, type GameMode, type RoleConfig, type AppView, type GameState } from "./context/GameContext";
@@ -348,6 +349,22 @@ function HomeScreen() {
         >
           Règles et rôles
         </button>
+
+        <button
+          onClick={() => navigate("nfc_test")}
+          className="w-full uppercase transition-all active:opacity-70"
+          style={{
+            fontFamily: "var(--font-title)",
+            color: "rgba(148,144,160,0.4)",
+            fontSize: "0.65rem",
+            letterSpacing: "0.25em",
+            padding: "10px 24px",
+            background: "transparent",
+            border: "none",
+          }}
+        >
+          📡 Tester les cartes NFC
+        </button>
       </div>
 
       {/* ── Footer ── */}
@@ -357,6 +374,84 @@ function HomeScreen() {
       >
         Sous la pleine lune
       </p>
+    </div>
+  );
+}
+
+// ── Écran : Test NFC ──────────────────────────────────────────────────────────
+
+function NFCTestScreen() {
+  const { navigate } = useGame();
+  type TestResult = { text: string; role: typeof ROLES_MAP[string] | null; ok: boolean };
+  const [result, setResult] = useState<TestResult | null>(null);
+  const [listening, setListening] = useState(true);
+
+  useEffect(() => {
+    if (!listening) return;
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim() ?? "";
+      const role = ROLES_MAP[text] ?? null;
+      setResult({ text, role, ok: !!role });
+      setListening(false);
+    };
+    window.addEventListener("nfc-tag", handler);
+    return () => window.removeEventListener("nfc-tag", handler);
+  }, [listening]);
+
+  return (
+    <div className="relative min-h-full flex flex-col" style={{ background: "var(--bg-deep)" }}>
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <img src="/lycan/village-night.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+        <div className="absolute inset-0" style={{ background: "rgba(11,10,15,0.65)" }} />
+      </div>
+
+      <div className="relative z-10 px-5 py-6 max-w-sm mx-auto flex flex-col gap-6">
+        <div className="flex items-center gap-3">
+          <BackButton onClick={() => navigate("home")} />
+          <div>
+            <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-title)", color: "var(--text-primary)" }}>Test des cartes NFC</h2>
+            <p className="text-[10px] font-mono uppercase tracking-widest mt-0.5" style={{ color: "var(--text-muted)" }}>Vérifie chaque tag</p>
+          </div>
+        </div>
+
+        {/* Zone de scan */}
+        <div
+          className="flex flex-col items-center justify-center gap-4 py-12 rounded-2xl border"
+          style={{ background: "rgba(22,20,31,0.85)", borderColor: listening ? "rgba(201,160,48,0.25)" : result?.ok ? "rgba(52,211,153,0.35)" : "rgba(239,68,68,0.35)" }}
+        >
+          {listening ? (
+            <>
+              <span className="text-5xl animate-pulse">📡</span>
+              <p className="text-sm font-semibold" style={{ fontFamily: "Cinzel, serif", color: "var(--gold)" }}>Approche une carte NFC</p>
+              <p className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>En attente du tag…</p>
+            </>
+          ) : result ? (
+            <>
+              <span className="text-5xl">{result.ok ? result.role!.emoji : "❌"}</span>
+              <p className="text-lg font-bold" style={{ fontFamily: "Cinzel, serif", color: result.ok ? "#34d399" : "#f87171" }}>
+                {result.ok ? result.role!.name : "Tag non reconnu"}
+              </p>
+              <p className="text-[11px] font-mono px-3 py-1.5 rounded-lg" style={{ background: "rgba(11,10,15,0.6)", color: "var(--text-muted)" }}>
+                ID lu : <span style={{ color: result.ok ? "#34d399" : "#f87171" }}>{result.text || "(vide)"}</span>
+              </p>
+            </>
+          ) : null}
+        </div>
+
+        {!listening && (
+          <button
+            onClick={() => { setResult(null); setListening(true); }}
+            className="w-full py-3.5 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all active:scale-95"
+            style={{ background: "rgba(201,160,48,0.12)", border: "1px solid rgba(201,160,48,0.3)", color: "var(--gold)", fontFamily: "Cinzel, serif" }}
+          >
+            Tester une autre carte →
+          </button>
+        )}
+
+        <p className="text-[10px] text-center font-mono" style={{ color: "rgba(148,144,160,0.4)" }}>
+          {result?.ok ? "✓ Carte reconnue dans la base de rôles" : listening ? "Le foreground dispatch Android est actif" : "✗ Cet ID n'existe pas dans les rôles — vérifier l'encodage"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -1777,6 +1872,20 @@ function RolePickerScreen({
   const [showNFC, setShowNFC] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const processingRef = useRef(false);
+
+  // Écoute les tags NFC natifs (foreground dispatch Android)
+  useEffect(() => {
+    const handleNative = async (e: Event) => {
+      if (processingRef.current) return;
+      const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim();
+      if (!text || !ROLES_MAP[text]) return;
+      processingRef.current = true;
+      try { await onClaimRole(text); } catch (err) { setError((err as Error).message); processingRef.current = false; }
+    };
+    window.addEventListener("nfc-tag", handleNative);
+    return () => window.removeEventListener("nfc-tag", handleNative);
+  }, [onClaimRole]);
 
   // Calcule les rôles encore disponibles (non pris par d'autres joueurs)
   const available = game.selectedRoles
@@ -1880,6 +1989,22 @@ function NFCScanScreen({ playerName, gameName, onScan }: { playerName: string; g
   const [status, setStatus] = useState<"idle" | "scanning" | "error" | "unsupported">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const nativeDoneRef = useRef(false);
+
+  // Écoute les tags NFC natifs (foreground dispatch Android)
+  useEffect(() => {
+    const handleNative = async (e: Event) => {
+      if (nativeDoneRef.current) return;
+      const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim();
+      if (!text || !ROLES_MAP[text]) { setStatus("error"); setErrorMsg("Tag non reconnu"); return; }
+      nativeDoneRef.current = true;
+      abortRef.current?.abort();
+      setStatus("scanning");
+      await onScan(text);
+    };
+    window.addEventListener("nfc-tag", handleNative);
+    return () => window.removeEventListener("nfc-tag", handleNative);
+  }, [onScan]);
 
   const startScan = async () => {
     setStatus("scanning");
@@ -2056,6 +2181,13 @@ function PlayerViewScreen() {
               <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#34d399" }} />
               <p className="text-[11px] font-mono" style={{ color: "#34d399" }}>Rôle enregistré — en attente du lancement</p>
             </div>
+            <button
+              onClick={() => navigate("home")}
+              className="text-[10px] font-mono uppercase tracking-widest py-2"
+              style={{ color: "rgba(148,144,160,0.45)" }}
+            >
+              Quitter la partie
+            </button>
           </div>
         </div>
       );
@@ -3044,6 +3176,11 @@ function AppInner() {
   const { state, navigate } = useGame();
   const { view } = state;
 
+  // Masquer la status bar Android au démarrage (mode immersif)
+  useEffect(() => {
+    StatusBar.hide().catch(() => {/* navigateur web — ignore */});
+  }, []);
+
   // Auto-navigate to JoinScreen si ?join ou ?code présent dans l'URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -3066,6 +3203,7 @@ function AppInner() {
       case "join": return <JoinScreen />;
       case "rules": return <RulesScreen />;
       case "guide": return <GuideScreen />;
+      case "nfc_test": return <NFCTestScreen />;
     }
   };
 

@@ -10,6 +10,13 @@ const config: CapacitorConfig = {
     // url: "http://192.168.1.23:5173",
     // cleartext: true, // autorise HTTP non-HTTPS sur Android
   },
+  plugins: {
+    StatusBar: {
+      style: "dark",
+      backgroundColor: "#0b0a0f",
+      overlaysWebView: false,
+    },
+  },
 };
 
 export default config;

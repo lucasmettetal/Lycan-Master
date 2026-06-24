@@ -1,7 +1,7 @@
 export type GamePhase = "waiting" | "night" | "day" | "vote" | "end";
 export type GameMode = "beginner" | "classic" | "expert" | "custom";
 export type PlayerStatus = "alive" | "dead" | "protected" | "infected";
-export type AppView = "home" | "create" | "players" | "roles" | "dashboard" | "player" | "vote" | "history" | "join" | "rules" | "guide";
+export type AppView = "home" | "create" | "players" | "roles" | "dashboard" | "player" | "vote" | "history" | "join" | "rules" | "guide" | "nfc_test";
 export type PlayerActionType =
   | "seer_choose_target"
   | "cupid_choose_lovers"
